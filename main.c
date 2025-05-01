@@ -1,9 +1,7 @@
-// Code fusionné sans obstacles, avec menu complet et scrolling avec personnage volant
-
 #include <allegro.h>
 #include <stdio.h>
 #include <string.h>
-
+#include <time.h>
 #define SCREEN_W 800
 #define SCREEN_H 600
 #define SCENE_WIDTH 13500
@@ -137,7 +135,7 @@ void jeu_scrolling(const char *pseudo) {
 
 
     BITMAP *sprite2 = load_bitmap("personnage2.bmp", NULL);
-
+    int temps_depart = clock();  // temps système au début
     if (!fond || !sprite1 || !sprite2) {
         allegro_message("Erreur chargement ressources !");
         return;
@@ -167,11 +165,19 @@ void jeu_scrolling(const char *pseudo) {
             joueur.y = SCREEN_H - joueur.hauteur - 10;
             joueur.dy = 0;
         }
-
+        if (joueur.x + joueur.largeur < 0) {
+            allegro_message("GAME OVER - Vous êtes sorti de l'écran !");
+            break;
+        }
         clear_bitmap(page);
         blit(fond, page, decor_scroll, 0, 0, 0, SCREEN_W, SCREEN_H);
         BITMAP *sprite = sprite_state ? sprite2 : sprite1;
         draw_jeu(&joueur, page, decor_scroll, sprite);
+        int temps_ecoule = (clock() - temps_depart) / CLOCKS_PER_SEC;
+
+        char buffer_temps[50];
+        sprintf(buffer_temps, "Temps : %d s", temps_ecoule);
+        textout_ex(page, font, buffer_temps, 10, 10, makecol(255, 255, 255), -1);
         blit(page, screen, 0, 0, 0, 0, SCREEN_W, SCREEN_H);
         rest(20);
     }
