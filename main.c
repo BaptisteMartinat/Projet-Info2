@@ -7,7 +7,7 @@
 #define SCENE_WIDTH 13500
 #define DECOR_SCROLL_SPEED 3
 #define GRAVITY 1
-#define JUMP_STRENGTH -10
+#define JUMP_STRENGTH -11
 #define MAX_NAME_LENGTH 30
 #define SAVE_FILE "save.txt"
 
