@@ -11,7 +11,7 @@
 #define MAX_NAME_LENGTH 30
 #define SAVE_FILE "save.txt"
 
-// === STRUCTURES ===
+// === STRUCTURES ===v
 typedef struct {
     int x, y;
     int dx, dy;
