@@ -40,9 +40,9 @@ void jeu_scrolling(const char *pseudo) {
     int temps_depart = clock();
 
 
-    // NOUVEAU 
+    // NOUVEAU
     int timerinterne = 0;
-    
+
     if (!fond || !sprite1 || !sprite2) {
         allegro_message("Erreur chargement ressources !");
         return;
@@ -54,7 +54,7 @@ void jeu_scrolling(const char *pseudo) {
     int sprite_state = 0;
 
     while (!key[KEY_ESC]) {
-      ///REMPLACER CA 
+      ///REMPLACER CA
        // if (keypressed() && (readkey() >> 8) == KEY_SPACE) {
          //   sprite_state = !sprite_state;
            // joueur.dy = JUMP_STRENGTH;
@@ -107,67 +107,194 @@ void menu_principal() {
     BITMAP *buffer = create_bitmap(SCREEN_W, SCREEN_H);
     BITMAP *fondmenu = load_bitmap("fondmenu.bmp", NULL);
     BITMAP *marbre = load_bitmap("marbre.bmp", NULL);
+    BITMAP *img_volcan = load_bitmap("volcan.bmp", NULL);
+    BITMAP *img_montagne = load_bitmap("montagne.bmp", NULL);
+    BITMAP *img_mer = load_bitmap("mer.bmp", NULL);
 
-    if (!fondmenu || !marbre) {
+    if (!fondmenu || !marbre || !img_volcan || !img_montagne || !img_mer) {
         allegro_message("Erreur chargement images menu.");
         return;
     }
 
     char pseudo[MAX_NAME_LENGTH] = "";
-    int saisir_pseudo = 1, pseudo_index = 0;
+    int etape_menu = 0; // 0 = pseudo, 1 = boutons, 2 = maps
+    int pseudo_index = 0;
 
     while (!key[KEY_ESC]) {
         clear(buffer);
         stretch_blit(fondmenu, buffer, 0, 0, fondmenu->w, fondmenu->h, 0, 0, SCREEN_W, SCREEN_H);
         textout_centre_ex(buffer, font, "==== BADLAND ====", SCREEN_W / 2, 30, makecol(255, 215, 0), -1);
-        textout_ex(buffer, font, "FREGE Victor - RUBILLON Aurelien", 10, SCREEN_H - 20, makecol(255, 255, 255), -1);
-        textout_ex(buffer, font, "MARTINAT Baptiste - LEPELTIER Corentin", SCREEN_W - 320, SCREEN_H - 20, makecol(255, 255, 255), -1);
 
-        if (saisir_pseudo) {
-            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, 200, 160, 400, 200);
-            rect(buffer, 200, 160, 600, 360, makecol(0, 0, 0));
-            textout_centre_ex(buffer, font, "RENTRER PSEUDO", 400, 180, makecol(0, 0, 0), -1);
-            rectfill(buffer, 250, 220, 550, 260, makecol(255, 230, 220));
-            rect(buffer, 250, 220, 550, 260, makecol(0, 0, 0));
-            textprintf_ex(buffer, font, 260, 235, makecol(0, 0, 0), -1, "%s", pseudo);
+        if (etape_menu == 0) {
+    // =========== SAISIE PSEUDO ===========
+    stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, 200, 160, 400, 200);
+    rect(buffer, 200, 160, 600, 360, makecol(0, 0, 0));
+    textout_centre_ex(buffer, font, "RENTRER PSEUDO", 400, 180, makecol(0, 0, 0), -1);
+    rectfill(buffer, 250, 220, 550, 260, makecol(255, 230, 220));
+    rect(buffer, 250, 220, 550, 260, makecol(0, 0, 0));
+    textprintf_ex(buffer, font, 260, 235, makecol(0, 0, 0), -1, "%s", pseudo);
 
-            int ok_x1 = 350, ok_y1 = 290, ok_x2 = 450, ok_y2 = 320;
-            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, ok_x1, ok_y1, ok_x2 - ok_x1, ok_y2 - ok_y1);
-            rect(buffer, ok_x1, ok_y1, ok_x2, ok_y2, makecol(0, 0, 0));
-            textout_centre_ex(buffer, font, "OK", 400, 300, makecol(0, 0, 0), -1);
+    int ok_x1 = 350, ok_y1 = 290, ok_x2 = 450, ok_y2 = 320;
+    stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, ok_x1, ok_y1, ok_x2 - ok_x1, ok_y2 - ok_y1);
+    rect(buffer, ok_x1, ok_y1, ok_x2, ok_y2, makecol(0, 0, 0));
+    textout_centre_ex(buffer, font, "OK", 400, 300, makecol(0, 0, 0), -1);
 
-            if (keypressed()) {
-                int key_code = readkey();
-                int k = key_code >> 8;
-                char ch = key_code & 0xff;
-                if (k == KEY_ENTER && pseudo_index > 0) saisir_pseudo = 0;
-                else if (k == KEY_BACKSPACE && pseudo_index > 0) pseudo[--pseudo_index] = '\0';
-                else if (pseudo_index < MAX_NAME_LENGTH - 1 && ch >= 32 && ch <= 126) {
-                    pseudo[pseudo_index++] = ch;
-                    pseudo[pseudo_index] = '\0';
-                }
-            }
-            if (mouse_b & 1 &&
-                mouse_x >= ok_x1 && mouse_x <= ok_x2 &&
-                mouse_y >= ok_y1 && mouse_y <= ok_y2 &&
-                pseudo_index > 0) {
-                saisir_pseudo = 0;
-                rest(200);
-            }
-        } else {
-            textprintf_ex(buffer, font, 10, 40, makecol(255, 255, 255), -1, "Joueur: %s", pseudo);
-            int bx = SCREEN_W / 2 - 125, by = 250, bw = 250, bh = 50;
-            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, bx, by, bw, bh);
-            rect(buffer, bx, by, bx + bw, by + bh, makecol(0, 0, 0));
-            textout_centre_ex(buffer, font, "NOUVELLE PARTIE", SCREEN_W / 2, by + 15, makecol(0, 0, 0), -1);
-
-            if (mouse_b & 1 &&
-                mouse_x >= bx && mouse_x <= bx + bw &&
-                mouse_y >= by && mouse_y <= by + bh) {
-                rest(200);
-                jeu_scrolling(pseudo);
-            }
+    if (keypressed()) {
+        int key_code = readkey();
+        int k = key_code >> 8;
+        char ch = key_code & 0xff;
+        if (k == KEY_ENTER && pseudo_index > 0) etape_menu = 1;
+        else if (k == KEY_BACKSPACE && pseudo_index > 0) pseudo[--pseudo_index] = '\0';
+        else if (pseudo_index < MAX_NAME_LENGTH - 1 && ch >= 32 && ch <= 126) {
+            pseudo[pseudo_index++] = ch;
+            pseudo[pseudo_index] = '\0';
         }
+    }
+
+    if (mouse_b & 1 &&
+        mouse_x >= ok_x1 && mouse_x <= ok_x2 &&
+        mouse_y >= ok_y1 && mouse_y <= ok_y2 &&
+        pseudo_index > 0) {
+        etape_menu = 1;
+        rest(200);
+    }
+
+} else if (etape_menu == 1) {
+    // ========== BOUTONS NOUVELLE / CHARGER ==========
+
+
+    textprintf_ex(buffer, font, 10, 40, makecol(255, 255, 255), -1, "Joueur: %s", pseudo);
+    textout_centre_ex(buffer, font, "Que veux-tu faire ?", SCREEN_W / 2, 80, makecol(255, 255, 255), -1);
+
+    int btn_w = 250, btn_h = 80;
+    int btn_x = (SCREEN_W - btn_w) / 2;
+    int btn_y1 = 180;
+    int btn_y2 = 300;
+
+    // Fond marbre + texte
+    stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, btn_x, btn_y1, btn_w, btn_h);
+    stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, btn_x, btn_y2, btn_w, btn_h);
+    rect(buffer, btn_x, btn_y1, btn_x + btn_w, btn_y1 + btn_h, makecol(0, 0, 0));
+    rect(buffer, btn_x, btn_y2, btn_x + btn_w, btn_y2 + btn_h, makecol(0, 0, 0));
+    textout_centre_ex(buffer, font, "Nouvelle Partie", SCREEN_W / 2, btn_y1 + 30, makecol(0, 0, 0), -1);
+    textout_centre_ex(buffer, font, "Charger Partie", SCREEN_W / 2, btn_y2 + 30, makecol(0, 0, 0), -1);
+
+
+    // ==== BOUTONS RETOUR ET QUITTER ====
+    int btn_ctrl_w = 100, btn_ctrl_h = 40;
+    int retour_x = 20, retour_y = SCREEN_H - 60;
+    int quit_x = SCREEN_W - 120, quit_y = SCREEN_H - 60;
+
+    // Bouton Retour
+    stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, retour_x, retour_y, btn_ctrl_w, btn_ctrl_h);
+    rect(buffer, retour_x, retour_y, retour_x + btn_ctrl_w, retour_y + btn_ctrl_h, makecol(0, 0, 0));
+    textout_centre_ex(buffer, font, "< Retour", retour_x + btn_ctrl_w / 2, retour_y + 12, makecol(0, 0, 0), -1);
+
+    // Bouton Quitter
+    stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, quit_x, quit_y, btn_ctrl_w, btn_ctrl_h);
+    rect(buffer, quit_x, quit_y, quit_x + btn_ctrl_w, quit_y + btn_ctrl_h, makecol(0, 0, 0));
+    textout_centre_ex(buffer, font, "Quitter", quit_x + btn_ctrl_w / 2, quit_y + 12, makecol(0, 0, 0), -1);
+    // Gestion clic
+    if (mouse_b & 1) {
+        rest(200);
+        // Nouvelle Partie
+        if (mouse_x >= btn_x && mouse_x <= btn_x + btn_w &&
+            mouse_y >= btn_y1 && mouse_y <= btn_y1 + btn_h) {
+            etape_menu = 2;
+            }
+        // Charger Partie
+        else if (mouse_x >= btn_x && mouse_x <= btn_x + btn_w &&
+                 mouse_y >= btn_y2 && mouse_y <= btn_y2 + btn_h) {
+            allegro_message("Chargement de partie non disponible.");
+                 }
+        // Retour
+        else if (mouse_x >= retour_x && mouse_x <= retour_x + btn_ctrl_w &&
+                 mouse_y >= retour_y && mouse_y <= retour_y + btn_ctrl_h) {
+            etape_menu = 0;
+                 }
+        // Quitter
+        else if (mouse_x >= quit_x && mouse_x <= quit_x + btn_ctrl_w &&
+                 mouse_y >= quit_y && mouse_y <= quit_y + btn_ctrl_h) {
+            break;
+                 }
+    }
+
+
+} else if (etape_menu == 2) {
+    // ========== CHOIX MAPS (inchangé) ==========
+    textprintf_ex(buffer, font, 10, 40, makecol(255, 255, 255), -1, "Joueur: %s", pseudo);
+    textout_centre_ex(buffer, font, "Choisis un environnement :", SCREEN_W / 2, 80, makecol(255, 255, 255), -1);
+
+    int cadre_w = 220, cadre_h = 300;
+    int img_w = 200, img_h = 280;
+    int img_y = 130;
+    int space = 40;
+    int start_x = (SCREEN_W - (3 * cadre_w + 2 * space)) / 2;
+
+    // VOLCAN
+    stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, start_x, img_y, cadre_w, cadre_h);
+    stretch_blit(img_volcan, buffer, 0, 0, img_volcan->w, img_volcan->h,
+                 start_x + (cadre_w - img_w) / 2, img_y + (cadre_h - img_h) / 2, img_w, img_h);
+    textout_centre_ex(buffer, font, "Terre de Feu", start_x + cadre_w / 2, img_y + cadre_h + 10, makecol(255, 255, 255), -1);
+
+    // MONTAGNE
+    int mx = start_x + cadre_w + space;
+    stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, mx, img_y, cadre_w, cadre_h);
+    stretch_blit(img_montagne, buffer, 0, 0, img_montagne->w, img_montagne->h,
+                 mx + (cadre_w - img_w) / 2, img_y + (cadre_h - img_h) / 2, img_w, img_h);
+    textout_centre_ex(buffer, font, "Pics Silencieux", mx + cadre_w / 2, img_y + cadre_h + 10, makecol(255, 255, 255), -1);
+
+    // MER
+    int merx = start_x + 2 * (cadre_w + space);
+    stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, merx, img_y, cadre_w, cadre_h);
+    stretch_blit(img_mer, buffer, 0, 0, img_mer->w, img_mer->h,
+                 merx + (cadre_w - img_w) / 2, img_y + (cadre_h - img_h) / 2, img_w, img_h);
+    textout_centre_ex(buffer, font, "Rivages Perdus", merx + cadre_w / 2, img_y + cadre_h + 10, makecol(255, 255, 255), -1);
+
+
+    // ==== BOUTONS RETOUR ET QUITTER ====
+    int btn_ctrl_w = 100, btn_ctrl_h = 40;
+    int retour_x = 20, retour_y = SCREEN_H - 60;
+    int quit_x = SCREEN_W - 120, quit_y = SCREEN_H - 60;
+
+    // Bouton Retour
+    stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, retour_x, retour_y, btn_ctrl_w, btn_ctrl_h);
+    rect(buffer, retour_x, retour_y, retour_x + btn_ctrl_w, retour_y + btn_ctrl_h, makecol(0, 0, 0));
+    textout_centre_ex(buffer, font, "< Retour", retour_x + btn_ctrl_w / 2, retour_y + 12, makecol(0, 0, 0), -1);
+
+    // Bouton Quitter
+    stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, quit_x, quit_y, btn_ctrl_w, btn_ctrl_h);
+    rect(buffer, quit_x, quit_y, quit_x + btn_ctrl_w, quit_y + btn_ctrl_h, makecol(0, 0, 0));
+    textout_centre_ex(buffer, font, "Quitter", quit_x + btn_ctrl_w / 2, quit_y + 12, makecol(0, 0, 0), -1);
+
+    // CLIC MAP
+    if (mouse_b & 1) {
+        rest(200);
+        if (mouse_x >= start_x && mouse_x <= start_x + cadre_w &&
+            mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
+            jeu_scrolling(pseudo);
+            } else if (mouse_x >= mx && mouse_x <= mx + cadre_w &&
+                       mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
+                allegro_message("Montagne pas encore disponible !");
+           } else if (mouse_x >= merx && mouse_x <= merx + cadre_w &&
+                      mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
+               allegro_message("Mer pas encore disponible !");
+                      }
+        // Retour
+        if (mouse_x >= retour_x && mouse_x <= retour_x + btn_ctrl_w &&
+            mouse_y >= retour_y && mouse_y <= retour_y + btn_ctrl_h) {
+            etape_menu = 1; // Revenir à l'étape précédente
+            }
+
+        // Quitter
+        if (mouse_x >= quit_x && mouse_x <= quit_x + btn_ctrl_w &&
+            mouse_y >= quit_y && mouse_y <= quit_y + btn_ctrl_h) {
+            break; // Sortir du menu principal
+            }
+    }
+
+}
+
 
         blit(buffer, screen, 0, 0, 0, 0, SCREEN_W, SCREEN_H);
         rest(10);
@@ -175,5 +302,8 @@ void menu_principal() {
 
     destroy_bitmap(fondmenu);
     destroy_bitmap(marbre);
+    destroy_bitmap(img_volcan);
+    destroy_bitmap(img_montagne);
+    destroy_bitmap(img_mer);
     destroy_bitmap(buffer);
 }
