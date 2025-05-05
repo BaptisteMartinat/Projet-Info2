@@ -27,6 +27,7 @@ void init_jeu(Joueur *joueur);
 void jeu_scrolling(const char *pseudo);
 void draw_jeu(Joueur *joueur, BITMAP *page, int decor_scroll, BITMAP *sprite);
 void menu_principal();
+void menu_selection_map(const char *pseudo);
 
 
 #endif //BADLAND_H
