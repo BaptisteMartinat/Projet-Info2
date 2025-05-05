@@ -71,7 +71,7 @@ void jeu_scrolling(const char *pseudo) {
                 sprite_state = 0; // retour au sprite ailes normales
             }
         }
-
+//fin
         decor_scroll += DECOR_SCROLL_SPEED;
         joueur.dy += GRAVITY;
         joueur.y += joueur.dy;
