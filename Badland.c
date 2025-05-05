@@ -39,6 +39,10 @@ void jeu_scrolling(const char *pseudo) {
     BITMAP *sprite2 = load_bitmap("personnage2.bmp", NULL);
     int temps_depart = clock();
 
+
+    // NOUVEAU 
+    int timerinterne = 0;
+    
     if (!fond || !sprite1 || !sprite2) {
         allegro_message("Erreur chargement ressources !");
         return;
@@ -50,9 +54,22 @@ void jeu_scrolling(const char *pseudo) {
     int sprite_state = 0;
 
     while (!key[KEY_ESC]) {
+      ///REMPLACER CA 
+       // if (keypressed() && (readkey() >> 8) == KEY_SPACE) {
+         //   sprite_state = !sprite_state;
+           // joueur.dy = JUMP_STRENGTH;
+        //}
+       //Par CA
         if (keypressed() && (readkey() >> 8) == KEY_SPACE) {
-            sprite_state = !sprite_state;
+            sprite_state = 1; // oiseau avec ailes en bas
+            timerinterne = 10; // durée en nombre d'images (5 × 20ms = 100ms)
             joueur.dy = JUMP_STRENGTH;
+        }
+        if (timerinterne > 0) {
+            timerinterne--;
+            if (timerinterne == 0) {
+                sprite_state = 0; // retour au sprite ailes normales
+            }
         }
 
         decor_scroll += DECOR_SCROLL_SPEED;
