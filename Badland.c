@@ -35,15 +35,13 @@ void jeu_scrolling(const char *pseudo) {
     int decor_scroll = 0;
     BITMAP *page = create_bitmap(SCREEN_W, SCREEN_H);
     BITMAP *fond = load_bitmap("grotte_lave.bmp", NULL);
+    BITMAP *collision_map = load_bitmap("grotte_lave_colli.bmp", NULL);
     BITMAP *sprite1 = load_bitmap("personnage1.bmp", NULL);
     BITMAP *sprite2 = load_bitmap("personnage2.bmp", NULL);
     int temps_depart = clock();
-
-
-    // NOUVEAU
     int timerinterne = 0;
 
-    if (!fond || !sprite1 || !sprite2) {
+    if (!fond || !sprite1 || !sprite2 || !collision_map) {
         allegro_message("Erreur chargement ressources !");
         return;
     }
@@ -54,34 +52,98 @@ void jeu_scrolling(const char *pseudo) {
     int sprite_state = 0;
 
     while (!key[KEY_ESC]) {
-      ///REMPLACER CA
-       // if (keypressed() && (readkey() >> 8) == KEY_SPACE) {
-         //   sprite_state = !sprite_state;
-           // joueur.dy = JUMP_STRENGTH;
-        //}
-       //Par CA
         if (keypressed() && (readkey() >> 8) == KEY_SPACE) {
-            sprite_state = 1; // oiseau avec ailes en bas
-            timerinterne = 10; // durée en nombre d'images (5 × 20ms = 100ms)
+            sprite_state = 1;
+            timerinterne = 10;
             joueur.dy = JUMP_STRENGTH;
         }
         if (timerinterne > 0) {
             timerinterne--;
             if (timerinterne == 0) {
-                sprite_state = 0; // retour au sprite ailes normales
+                sprite_state = 0;
             }
         }
-//fin
-        decor_scroll += DECOR_SCROLL_SPEED;
-        joueur.dy += GRAVITY;
-        joueur.y += joueur.dy;
 
+        joueur.dy += GRAVITY;
+
+        // === Collision horizontale ===
+        int try_x = joueur.x + 1;
+        int can_move_x = 1;
+
+        for (int i = 0; i < joueur.largeur; i++) {
+            for (int j = 0; j < joueur.hauteur; j++) {
+                int gx = try_x + i + decor_scroll;
+                int gy = joueur.y + j;
+                if (gx >= 0 && gx < collision_map->w &&
+                    gy >= 0 && gy < collision_map->h) {
+                    if (getpixel(collision_map, gx, gy) == makecol(0, 0, 0)) {
+                        can_move_x = 0;
+                        break;
+                    }
+                }
+            }
+            if (!can_move_x) break;
+        }
+
+        if (can_move_x) {
+            joueur.x += 1;
+        } else {
+            // Collision détectée → pousser le joueur vers la gauche
+            // Tant qu'on détecte une collision à sa position actuelle
+            int pushed = 0;
+            do {
+                pushed = 0;
+                for (int i = 0; i < joueur.largeur && !pushed; i++) {
+                    for (int j = 0; j < joueur.hauteur && !pushed; j++) {
+                        int gx = joueur.x + i + decor_scroll;
+                        int gy = joueur.y + j;
+                        if (gx >= 0 && gx < collision_map->w &&
+                            gy >= 0 && gy < collision_map->h) {
+                            if (getpixel(collision_map, gx, gy) == makecol(0, 0, 0)) {
+                                joueur.x -= 1;
+                                pushed = 1;
+                            }
+                        }
+                    }
+                }
+            } while (pushed && joueur.x > 0);
+        }
+
+        // === Collision verticale ===
+        int try_y = joueur.y + joueur.dy;
+        int can_move_y = 1;
+
+        for (int i = 0; i < joueur.largeur; i++) {
+            for (int j = 0; j < joueur.hauteur; j++) {
+                int gx = joueur.x + i + decor_scroll;
+                int gy = try_y + j;
+                if (gx >= 0 && gx < collision_map->w &&
+                    gy >= 0 && gy < collision_map->h) {
+                    if (getpixel(collision_map, gx, gy) == makecol(0, 0, 0)) {
+                        can_move_y = 0;
+                        break;
+                    }
+                }
+            }
+            if (!can_move_y) break;
+        }
+
+        if (can_move_y) {
+            joueur.y += joueur.dy;
+        } else {
+            joueur.dy = 0;
+        }
+
+        // Bord de l'écran
         if (joueur.y < 10) joueur.y = 10, joueur.dy = 0;
         if (joueur.y + joueur.hauteur > SCREEN_H - 10) joueur.y = SCREEN_H - joueur.hauteur - 10, joueur.dy = 0;
+
         if (joueur.x + joueur.largeur < 0) {
             allegro_message("GAME OVER - Vous êtes sorti de l'écran !");
             break;
         }
+
+        decor_scroll += DECOR_SCROLL_SPEED;
 
         clear_bitmap(page);
         blit(fond, page, decor_scroll, 0, 0, 0, SCREEN_W, SCREEN_H);
@@ -98,10 +160,12 @@ void jeu_scrolling(const char *pseudo) {
     }
 
     destroy_bitmap(fond);
+    destroy_bitmap(collision_map);
     destroy_bitmap(sprite1);
     destroy_bitmap(sprite2);
     destroy_bitmap(page);
 }
+
 
 void menu_principal() {
     BITMAP *buffer = create_bitmap(SCREEN_W, SCREEN_H);
