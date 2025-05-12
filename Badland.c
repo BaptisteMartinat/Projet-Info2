@@ -56,6 +56,8 @@ void jeu_scrolling(const char *pseudo) {
     BITMAP *collision_map = load_bitmap("grotte_lave_colli.bmp", NULL);
     BITMAP *sprite1 = load_bitmap("personnage1.bmp", NULL);
     BITMAP *sprite2 = load_bitmap("personnage2.bmp", NULL);
+    BITMAP *checkpoint_sprite = load_bitmap("checkpoint.bmp", NULL);
+
     int temps_depart = clock();
     int timerinterne = 0;
     if (!fond || !sprite1 || !sprite2 || !collision_map) {
@@ -70,12 +72,11 @@ void jeu_scrolling(const char *pseudo) {
     int sprite_state = 0;
     Checkpoint checkpoints[NB_CHECKPOINTS] = {0};
     int dernier_checkpoint = -1;
-    const int checkpoint_couleurs[NB_CHECKPOINTS] = {
-        makecol(0, 0, 100),
-        makecol(0, 0, 150),
-        makecol(0, 0, 200),
-        makecol(0, 0, 250),
-        makecol(100, 0, 255)
+    const int checkpoint_positions[NB_CHECKPOINTS][2] = {
+        {1600, 570},
+        {3600, 577},
+        {5370, 530},
+        {7184, 465}
     };
     while (!key[KEY_ESC]) {
         if (keypressed() && (readkey() >> 8) == KEY_SPACE) {
@@ -159,30 +160,29 @@ void jeu_scrolling(const char *pseudo) {
         // Bords écran
 
 
-        int cx = joueur.x + joueur.largeur / 2;
-        int cy = joueur.y + joueur.hauteur / 2;
-        int cp_id = detecter_checkpoint(collision_map, cx, cy, COLLISION_RADIUS, decor_scroll, checkpoint_couleurs, NB_CHECKPOINTS);
+        for (int i = 0; i < NB_CHECKPOINTS; i++) {
+            if (!checkpoints[i].actif &&
+            joueur_sur_checkpoint(&joueur, checkpoint_positions[i][0], checkpoint_positions[i][1],decor_scroll, checkpoint_sprite->w, checkpoint_sprite->h)) {
 
-        if (cp_id != -1 && !checkpoints[cp_id].actif) {
-            checkpoints[cp_id].x = joueur.x;
-            checkpoints[cp_id].y = joueur.y;
-            checkpoints[cp_id].scroll = decor_scroll;
-            checkpoints[cp_id].actif = 1;
-            dernier_checkpoint = cp_id;
+                checkpoints[i].x = joueur.x;
+                checkpoints[i].y = joueur.y;
+                checkpoints[i].actif = 1;
+                dernier_checkpoint = i;
 
-            char msg[50];
-            sprintf(msg, "Checkpoint %d atteint !", cp_id);
-            allegro_message(msg);
+                char msg[50];
+                sprintf(msg, "Checkpoint %d activé !", i + 1);
+                allegro_message(msg);
+                }
         }
 
 
         if (joueur.y + joueur.hauteur > SCREEN_H - 10) joueur.y = SCREEN_H - joueur.hauteur - 10, joueur.dy = 0;
 
         if (joueur.x + joueur.largeur < 0) {
-            if (dernier_checkpoint != -1 && checkpoints[dernier_checkpoint].actif) {
+            if (dernier_checkpoint != -1) {
                 joueur.x = checkpoints[dernier_checkpoint].x;
-                joueur.y = checkpoints[dernier_checkpoint].y;
-                decor_scroll = checkpoints[dernier_checkpoint].scroll;
+                joueur.y = 320;
+                decor_scroll = checkpoint_positions[dernier_checkpoint][0] - joueur.x + 100;
                 joueur.dy = 0;
                 joueur.dx = 0;
                 allegro_message("Reprise depuis le dernier checkpoint !");
@@ -196,6 +196,11 @@ void jeu_scrolling(const char *pseudo) {
         clear_bitmap(page);
         blit(fond, page, decor_scroll, 0, 0, 0, SCREEN_W, SCREEN_H);
         BITMAP *sprite = sprite_state ? sprite2 : sprite1;
+        for (int i = 0; i < NB_CHECKPOINTS; i++) {
+            int draw_x = checkpoint_positions[i][0] - decor_scroll;
+            int draw_y = checkpoint_positions[i][1] - checkpoint_sprite->h;
+            draw_sprite(page, checkpoint_sprite, draw_x, draw_y);
+        }
         draw_jeu(&joueur, page, decor_scroll, sprite);
 
         char buffer_temps[50];
@@ -212,27 +217,25 @@ void jeu_scrolling(const char *pseudo) {
     destroy_bitmap(sprite1);
     destroy_bitmap(sprite2);
     destroy_bitmap(page);
+    destroy_bitmap(checkpoint_sprite);
 }
 
-int detecter_checkpoint(BITMAP *map, int cx, int cy, int rayon, int scroll,
-                        const int checkpoint_couleurs[], int nb_checkpoints) {
-    for (int dx = -rayon; dx <= rayon; dx++) {
-        for (int dy = -rayon; dy <= rayon; dy++) {
-            if (dx*dx + dy*dy <= rayon*rayon) {
-                int x = cx + dx + scroll;
-                int y = cy + dy;
-                if (x >= 0 && x < map->w && y >= 0 && y < map->h) {
-                    int pixel = getpixel(map, x, y);
-                    for (int i = 0; i < NB_CHECKPOINTS; i++) {
-                        if (pixel == checkpoint_couleurs[i]) {
-                            return i;  // Retourne l'ID du checkpoint
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return -1;
+int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sprite_w, int sprite_h) {
+    int jx1 = joueur->x;
+    int jy1 = joueur->y;
+    int jx2 = joueur->x + joueur->largeur;
+    int jy2 = joueur->y + joueur->hauteur;
+
+    int cp_draw_x = cp_x - scroll;
+    int cp_draw_y = cp_y - sprite_h;
+
+    int cx1 = cp_draw_x;
+    int cy1 = cp_draw_y;
+    int cx2 = cp_draw_x + sprite_w;
+    int cy2 = cp_draw_y + sprite_h;
+
+    // collision rectangle-rectangle
+    return !(jx2 < cx1 || jx1 > cx2 || jy2 < cy1 || jy1 > cy2);
 }
 
 void menu_principal() {
