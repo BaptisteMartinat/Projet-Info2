@@ -47,7 +47,23 @@ int collision_disc(BITMAP *collision_map, int cx, int cy, int radius, int decor_
     }
     return 0;
 }
-
+int detecter_arrivee(BITMAP *map, int cx, int cy, int rayon, int scroll) {
+    for (int dx = -rayon; dx <= rayon; dx++) {
+        for (int dy = -rayon; dy <= rayon; dy++) {
+            if (dx * dx + dy * dy <= rayon * rayon) {
+                int x = cx + dx + scroll;
+                int y = cy + dy;
+                if (x >= 0 && x < map->w && y >= 0 && y < map->h) {
+                    int pixel = getpixel(map, x, y);
+                    if (pixel == makecol(0, 255, 0)) {
+                        return 1;  // Vert détecté → arrivée
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+}
 void jeu_scrolling(const char *pseudo) {
     Joueur joueur;
     int decor_scroll = 0;
@@ -136,8 +152,6 @@ void jeu_scrolling(const char *pseudo) {
         decor_scroll += DECOR_SCROLL_SPEED;
 
         // 4. Poussée par le décor (s’il est bloqué à droite)
-        center_x = joueur.x + joueur.largeur / 2;
-        center_y = joueur.y + joueur.hauteur / 2;
 
         if (collision_horizontale) {
             center_x = joueur.x + joueur.largeur / 2;
@@ -156,7 +170,13 @@ void jeu_scrolling(const char *pseudo) {
                    }
 
         }
-
+        if (detecter_arrivee(collision_map, center_x, center_y, COLLISION_RADIUS, decor_scroll)) {
+            int temps_total = (clock() - temps_depart) / CLOCKS_PER_SEC;
+            char msg[100];
+            sprintf(msg, "Bravo %s !\nTu as terminé le niveau en %d secondes.", joueur.nom, temps_total);
+            allegro_message(msg);
+            break;  // quitte la boucle → retour menu
+        }
         // Bords écran
 
 
