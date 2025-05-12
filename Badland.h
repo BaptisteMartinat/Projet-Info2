@@ -12,7 +12,7 @@
 #define MAX_NAME_LENGTH 30
 #define SAVE_FILE "save.txt"
 #define COLLISION_RADIUS 40
-#define NB_CHECKPOINTS 5
+
 
 typedef struct {
     int x, y;
@@ -22,10 +22,11 @@ typedef struct {
     int niveau;
 } Joueur;
 
+#define NB_CHECKPOINTS 4
+
 typedef struct {
     int x, y;
-    int scroll;
-    int actif;
+    int actif;     // 1 = activé, 0 = non
 } Checkpoint;
 
 void initialisation_allegro();
@@ -35,7 +36,7 @@ void draw_jeu(Joueur *joueur, BITMAP *page, int decor_scroll, BITMAP *sprite);
 void menu_principal();
 void menu_selection_map(const char *pseudo);
 
-int detecter_checkpoint(BITMAP *map, int cx, int cy, int rayon, int scroll, const int checkpoint_couleurs[], int nb_checkpoints);
+int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sprite_w, int sprite_h);
 void init_checkpoints(Checkpoint checkpoints[NB_CHECKPOINTS]);
 
 #endif //BADLAND_H
