@@ -24,10 +24,28 @@ void init_jeu(Joueur *joueur) {
     joueur->hauteur = 40;
     joueur->dy = 0;
     joueur->dx = 0;
+
 }
 
 void draw_jeu(Joueur *joueur, BITMAP *page, int decor_scroll, BITMAP *sprite) {
     draw_sprite(page, sprite, joueur->x, joueur->y);
+}
+int collision_disc(BITMAP *collision_map, int cx, int cy, int radius, int decor_scroll) {
+    for (int dx = -radius; dx <= radius; dx++) {
+        for (int dy = -radius; dy <= radius; dy++) {
+            if (dx*dx + dy*dy <= radius*radius) {
+                int x = cx + dx + decor_scroll;
+                int y = cy + dy;
+                if (x >= 0 && x < collision_map->w &&
+                    y >= 0 && y < collision_map->h) {
+                    if (getpixel(collision_map, x, y) == makecol(0, 0, 0)) {
+                        return 1;  // collision détectée
+                    }
+                    }
+            }
+        }
+    }
+    return 0;
 }
 
 void jeu_scrolling(const char *pseudo) {
@@ -40,17 +58,25 @@ void jeu_scrolling(const char *pseudo) {
     BITMAP *sprite2 = load_bitmap("personnage2.bmp", NULL);
     int temps_depart = clock();
     int timerinterne = 0;
-
     if (!fond || !sprite1 || !sprite2 || !collision_map) {
         allegro_message("Erreur chargement ressources !");
         return;
     }
-
+    int collision_horizontale = 0;
+    int collision_verticale = 0;
     init_jeu(&joueur);
     strcpy(joueur.nom, pseudo);
     joueur.niveau = 1;
     int sprite_state = 0;
-
+    Checkpoint checkpoints[NB_CHECKPOINTS] = {0};
+    int dernier_checkpoint = -1;
+    const int checkpoint_couleurs[NB_CHECKPOINTS] = {
+        makecol(0, 0, 100),
+        makecol(0, 0, 150),
+        makecol(0, 0, 200),
+        makecol(0, 0, 250),
+        makecol(100, 0, 255)
+    };
     while (!key[KEY_ESC]) {
         if (keypressed() && (readkey() >> 8) == KEY_SPACE) {
             sprite_state = 1;
@@ -63,87 +89,109 @@ void jeu_scrolling(const char *pseudo) {
                 sprite_state = 0;
             }
         }
-
+        joueur.dx = 1;  // avance constante
         joueur.dy += GRAVITY;
 
-        // === Collision horizontale ===
-        int try_x = joueur.x + 1;
-        int can_move_x = 1;
+        // 1. Déplacement horizontal proposé
+        int new_x = joueur.x + joueur.dx;
+        int center_x = new_x + joueur.largeur / 2;
+        int center_y = joueur.y + joueur.hauteur / 2;
 
-        for (int i = 0; i < joueur.largeur; i++) {
-            for (int j = 0; j < joueur.hauteur; j++) {
-                int gx = try_x + i + decor_scroll;
-                int gy = joueur.y + j;
-                if (gx >= 0 && gx < collision_map->w &&
-                    gy >= 0 && gy < collision_map->h) {
-                    if (getpixel(collision_map, gx, gy) == makecol(0, 0, 0)) {
-                        can_move_x = 0;
-                        break;
-                    }
-                }
-            }
-            if (!can_move_x) break;
-        }
-
-        if (can_move_x) {
-            joueur.x += 1;
+        if (!collision_disc(collision_map, center_x, center_y, COLLISION_RADIUS, decor_scroll)) {
+            joueur.x = new_x;
         } else {
-            // Collision détectée → pousser le joueur vers la gauche
-            // Tant qu'on détecte une collision à sa position actuelle
-            int pushed = 0;
-            do {
-                pushed = 0;
-                for (int i = 0; i < joueur.largeur && !pushed; i++) {
-                    for (int j = 0; j < joueur.hauteur && !pushed; j++) {
-                        int gx = joueur.x + i + decor_scroll;
-                        int gy = joueur.y + j;
-                        if (gx >= 0 && gx < collision_map->w &&
-                            gy >= 0 && gy < collision_map->h) {
-                            if (getpixel(collision_map, gx, gy) == makecol(0, 0, 0)) {
-                                joueur.x -= 1;
-                                pushed = 1;
-                            }
-                        }
-                    }
-                }
-            } while (pushed && joueur.x > 0);
+            joueur.dx = 0;  // blocage horizontal
+            collision_horizontale = 1;
         }
 
-        // === Collision verticale ===
-        int try_y = joueur.y + joueur.dy;
-        int can_move_y = 1;
+        // 2. Déplacement vertical proposé
+        int new_y = joueur.y + joueur.dy;
+        center_x = joueur.x + joueur.largeur / 2;
 
-        for (int i = 0; i < joueur.largeur; i++) {
-            for (int j = 0; j < joueur.hauteur; j++) {
-                int gx = joueur.x + i + decor_scroll;
-                int gy = try_y + j;
-                if (gx >= 0 && gx < collision_map->w &&
-                    gy >= 0 && gy < collision_map->h) {
-                    if (getpixel(collision_map, gx, gy) == makecol(0, 0, 0)) {
-                        can_move_y = 0;
-                        break;
-                    }
-                }
-            }
-            if (!can_move_y) break;
-        }
+        // Décalage vers le bas si montée pour éviter détection trop tôt
 
-        if (can_move_y) {
-            joueur.y += joueur.dy;
+        center_y = new_y + joueur.hauteur / 2;
+
+        if (!collision_disc(collision_map, center_x, center_y, COLLISION_RADIUS, decor_scroll)) {
+            joueur.y = new_y;
         } else {
-            joueur.dy = 0;
+            if (joueur.dy < 0) {
+                // Collision plafond
+                joueur.dy = 0;
+                collision_verticale = 1;
+                // Facultatif : ajuster joueur.y légèrement
+            } else {
+                // Collision sol
+                joueur.dy = 0;
+                collision_verticale = 1;
+                // Facultatif : ajuster joueur.y pour qu’il se pose pile sur le sol
+            }
         }
 
-        // Bord de l'écran
-        if (joueur.y < 10) joueur.y = 10, joueur.dy = 0;
+        // Poussée par le décor (si bloqué par l'avant)
+
+
+        // 3. Scroll du décor (poussée implicite)
+        decor_scroll += DECOR_SCROLL_SPEED;
+
+        // 4. Poussée par le décor (s’il est bloqué à droite)
+        center_x = joueur.x + joueur.largeur / 2;
+        center_y = joueur.y + joueur.hauteur / 2;
+
+        if (collision_horizontale) {
+            center_x = joueur.x + joueur.largeur / 2;
+            center_y = joueur.y + joueur.hauteur / 2;
+
+            int recul_max = 3;  // Ne pas pousser plus de 3 pixels par frame
+            int recul = 0;
+
+            while (collision_disc(collision_map, center_x, center_y, COLLISION_RADIUS, decor_scroll)
+                   && recul < recul_max) {
+                joueur.x -= 1;
+                center_x = joueur.x + joueur.largeur / 2;
+                recul++;
+
+                if (joueur.x + joueur.largeur < 0) break;
+                   }
+
+        }
+
+        // Bords écran
+
+
+        int cx = joueur.x + joueur.largeur / 2;
+        int cy = joueur.y + joueur.hauteur / 2;
+        int cp_id = detecter_checkpoint(collision_map, cx, cy, COLLISION_RADIUS, decor_scroll, checkpoint_couleurs, NB_CHECKPOINTS);
+
+        if (cp_id != -1 && !checkpoints[cp_id].actif) {
+            checkpoints[cp_id].x = joueur.x;
+            checkpoints[cp_id].y = joueur.y;
+            checkpoints[cp_id].scroll = decor_scroll;
+            checkpoints[cp_id].actif = 1;
+            dernier_checkpoint = cp_id;
+
+            char msg[50];
+            sprintf(msg, "Checkpoint %d atteint !", cp_id);
+            allegro_message(msg);
+        }
+
+
         if (joueur.y + joueur.hauteur > SCREEN_H - 10) joueur.y = SCREEN_H - joueur.hauteur - 10, joueur.dy = 0;
 
         if (joueur.x + joueur.largeur < 0) {
-            allegro_message("GAME OVER - Vous êtes sorti de l'écran !");
-            break;
+            if (dernier_checkpoint != -1 && checkpoints[dernier_checkpoint].actif) {
+                joueur.x = checkpoints[dernier_checkpoint].x;
+                joueur.y = checkpoints[dernier_checkpoint].y;
+                decor_scroll = checkpoints[dernier_checkpoint].scroll;
+                joueur.dy = 0;
+                joueur.dx = 0;
+                allegro_message("Reprise depuis le dernier checkpoint !");
+            } else {
+                allegro_message("GAME OVER - Aucun checkpoint atteint !");
+                break;
+            }
         }
 
-        decor_scroll += DECOR_SCROLL_SPEED;
 
         clear_bitmap(page);
         blit(fond, page, decor_scroll, 0, 0, 0, SCREEN_W, SCREEN_H);
@@ -166,6 +214,26 @@ void jeu_scrolling(const char *pseudo) {
     destroy_bitmap(page);
 }
 
+int detecter_checkpoint(BITMAP *map, int cx, int cy, int rayon, int scroll,
+                        const int checkpoint_couleurs[], int nb_checkpoints) {
+    for (int dx = -rayon; dx <= rayon; dx++) {
+        for (int dy = -rayon; dy <= rayon; dy++) {
+            if (dx*dx + dy*dy <= rayon*rayon) {
+                int x = cx + dx + scroll;
+                int y = cy + dy;
+                if (x >= 0 && x < map->w && y >= 0 && y < map->h) {
+                    int pixel = getpixel(map, x, y);
+                    for (int i = 0; i < NB_CHECKPOINTS; i++) {
+                        if (pixel == checkpoint_couleurs[i]) {
+                            return i;  // Retourne l'ID du checkpoint
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return -1;
+}
 
 void menu_principal() {
     BITMAP *buffer = create_bitmap(SCREEN_W, SCREEN_H);
