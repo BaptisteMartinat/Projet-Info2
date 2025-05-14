@@ -266,6 +266,10 @@ void jeu_scrolling(const char *pseudo) {
     BITMAP *page = create_bitmap(SCREEN_W, SCREEN_H);
     BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit;
     BITMAP *roues[4];
+    Roue roues[NB_ROUES];
+    Checkpoint checkpoints[NB_CHECKPOINTS] = {0};
+    int dernier_cp = -1;
+    int timer_roues = 0;
 
     if (!charger_ressources(&fond, &collision_map, &sprite1, &sprite2, &img_gros, roues, &img_petit)) return;
 
@@ -290,8 +294,20 @@ void jeu_scrolling(const char *pseudo) {
 
     while (!key[KEY_ESC]) {
         int temps_actuel = (clock() - temps_depart) / CLOCKS_PER_SEC;
+        maj_roues(roues, &timer_roues);
 
-        gerer_roues(&etape_roue, &dernier_changement_roue, temps_actuel);
+// Gestion des collisions entre le joueur et les roues
+gestion_collision_roues(&joueur, roues, NB_ROUES, &decor_scroll, checkpoints, dernier_cp);
+
+// Mise à jour des checkpoints
+maj_checkpoints(&joueur, checkpoints, positions_cp, &dernier_cp, decor_scroll, sprite1);
+
+// Détection de l'arrivée
+if (detecter_arrivee(collision_map, joueur.x + decor_scroll, joueur.y, COLLISION_RADIUS, 0)) {
+    allegro_message("Félicitations, vous avez atteint l'arrivée !");
+    break;
+}
+    
         gerer_saut(&joueur, &sprite_state, &timerinterne);
         appliquer_physique(&joueur);
 
