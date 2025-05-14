@@ -1,3 +1,5 @@
+
+
 #ifndef BADLAND_H
 #define BADLAND_H
 
@@ -11,8 +13,6 @@
 #define JUMP_STRENGTH -11
 #define MAX_NAME_LENGTH 30
 #define SAVE_FILE "save.txt"
-#define COLLISION_RADIUS 40
-
 
 typedef struct {
     int x, y;
@@ -22,24 +22,27 @@ typedef struct {
     int niveau;
 } Joueur;
 
-#define NB_CHECKPOINTS 4
-#define NB_ROUES 1
-typedef struct {
-    int x, y;
-    int actif;     // 1 = activé, 0 = non
-} Checkpoint;
-typedef struct {
-    int x, y;
-    int frame;      // index de l'image (0 à 3)
-} Roue;
 void initialisation_allegro();
 void init_jeu(Joueur *joueur);
 void jeu_scrolling(const char *pseudo);
 void draw_jeu(Joueur *joueur, BITMAP *page, int decor_scroll, BITMAP *sprite);
 void menu_principal();
 void menu_selection_map(const char *pseudo);
-int detecter_arrivee(BITMAP *map, int cx, int cy, int rayon, int scroll);
-int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sprite_w, int sprite_h);
-void init_checkpoints(Checkpoint checkpoints[NB_CHECKPOINTS]);
+int charger_ressources(BITMAP **fond, BITMAP **collision_map, BITMAP **sprite1,
+                       BITMAP **sprite2, BITMAP **img_gros, BITMAP *roues[]);
+void gerer_roues(int *etape_roue, int *dernier_changement_roue, int temps_actuel);
+void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne);
+void appliquer_physique(Joueur *joueur);
+int verifier_collision_roue(Joueur *joueur, BITMAP *roue, int roue_x, int roue_y, int decor_scroll);
+void gerer_collisions(Joueur *joueur, BITMAP *collision_map, int decor_scroll);
+int collision(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2);
+void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2,
+                    BITMAP *roues[], int etape_roue, Joueur *joueur, int sprite_state,
+                    float facteur_perso, int decor_scroll, int temps_actuel,
+                    int afficher_gros, int gros_collision, BITMAP *img_gros,
+                    int gros_x, int gros_y);
+void nettoyer_ressources(BITMAP *fond, BITMAP *collision_map, BITMAP *sprite1,
+                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *roues[], BITMAP *page);
+
 
 #endif //BADLAND_H
