@@ -48,13 +48,81 @@ int charger_ressources(BITMAP **fond, BITMAP **collision_map, BITMAP **sprite1,
     }
     return 1;
 }
+nt detecter_arrivee(BITMAP *map, int cx, int cy, int rayon, int scroll) {
+    for (int dx = -rayon; dx <= rayon; dx++) {
+        for (int dy = -rayon; dy <= rayon; dy++) {
+            if (dx * dx + dy * dy <= rayon * rayon) {
+                int x = cx + dx + scroll;
+                int y = cy + dy;
+                if (x >= 0 && x < map->w && y >= 0 && y < map->h) {
+                    if (getpixel(map, x, y) == makecol(0, 255, 0)) return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
 
-void gerer_roues(int *etape_roue, int *dernier_changement_roue, int temps_actuel) {
-    if (temps_actuel - *dernier_changement_roue >= 0.5) {
-        *etape_roue = (*etape_roue + 1) % 4;
-        *dernier_changement_roue = temps_actuel;
+// 3. Animation des roues
+void maj_roues(Roue roues[], int *timer) {
+    (*timer)++;
+    if (*timer % 6 == 0) {
+        for (int i = 0; i < NB_ROUES; i++) {
+            roues[i].frame = (roues[i].frame + 1) % 4;
+        }
     }
 }
+
+// 4. Collision roue avec checkpoint
+void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_scroll, Checkpoint checkpoints[], int dernier_cp) {
+    for (int i = 0; i < nb; i++) {
+        int rx = roues[i].x - *decor_scroll;
+        int ry = roues[i].y;
+        int jx = joueur->x + joueur->largeur / 2;
+        int jy = joueur->y + joueur->hauteur / 2;
+        int dx = jx - rx;
+        int dy = jy - ry;
+        if (dx * dx + dy * dy < 130 * 130) {
+            if (dernier_cp != -1) {
+                allegro_message("Tu as touché une roue ! Reprise depuis le dernier checkpoint.");
+                joueur->x = checkpoints[dernier_cp].x;
+                joueur->y = checkpoints[dernier_cp].y;
+                *decor_scroll = checkpoints[dernier_cp].scroll;
+                joueur->dy = joueur->dx = 0;
+            } else {
+                allegro_message("Tu es mort ! Aucun checkpoint atteint. Retour au menu.");
+                menu_principal();
+                return;
+            }
+        }
+    }
+}
+
+// 5. Checkpoints
+int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sw, int sh) {
+    int jx1 = joueur->x, jy1 = joueur->y;
+    int jx2 = jx1 + joueur->largeur;
+    int jy2 = jy1 + joueur->hauteur;
+    int cx1 = cp_x - scroll, cy1 = cp_y - sh;
+    int cx2 = cx1 + sw, cy2 = cy1 + sh;
+    return !(jx2 < cx1 || jx1 > cx2 || jy2 < cy1 || jy1 > cy2);
+}
+
+void maj_checkpoints(Joueur *joueur, Checkpoint checkpoints[], const int positions[][2], int *dernier_cp, int decor_scroll, BITMAP *sprite) {
+    for (int i = 0; i < NB_CHECKPOINTS; i++) {
+        if (!checkpoints[i].actif && joueur_sur_checkpoint(joueur, positions[i][0], positions[i][1], decor_scroll, sprite->w, sprite->h)) {
+            checkpoints[i].x = joueur->x;
+            checkpoints[i].y = joueur->y;
+            checkpoints[i].scroll = decor_scroll;
+            checkpoints[i].actif = 1;
+            *dernier_cp = i;
+            char msg[50];
+            sprintf(msg, "Checkpoint %d activé !", i + 1);
+            allegro_message(msg);
+        }
+    }
+}
+
 
 void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne) {
     if (keypressed() && (readkey() >> 8) == KEY_SPACE) {
