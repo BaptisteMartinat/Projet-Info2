@@ -48,7 +48,7 @@ int charger_ressources(BITMAP **fond, BITMAP **collision_map, BITMAP **sprite1,
     }
     return 1;
 }
-nt detecter_arrivee(BITMAP *map, int cx, int cy, int rayon, int scroll) {
+int detecter_arrivee(BITMAP *map, int cx, int cy, int rayon, int scroll) {
     for (int dx = -rayon; dx <= rayon; dx++) {
         for (int dy = -rayon; dy <= rayon; dy++) {
             if (dx * dx + dy * dy <= rayon * rayon) {
@@ -122,7 +122,13 @@ void maj_checkpoints(Joueur *joueur, Checkpoint checkpoints[], const int positio
         }
     }
 }
-
+void afficher_roues(BITMAP *page, BITMAP *roues[], Roue roues_struct[], int nb, int decor_scroll) {
+    for (int i = 0; i < nb; i++) {
+        int x_affiche = roues_struct[i].x - decor_scroll;
+        int y_affiche = roues_struct[i].y;
+        draw_sprite(page, roues[roues_struct[i].frame], x_affiche, y_affiche);
+    }
+}
 
 void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne) {
     if (keypressed() && (readkey() >> 8) == KEY_SPACE) {
@@ -261,122 +267,117 @@ void nettoyer_ressources(BITMAP *fond, BITMAP *collision_map, BITMAP *sprite1,
 }
 
 void jeu_scrolling(const char *pseudo) {
+    // Initialisation du joueur
     Joueur joueur;
-    int decor_scroll = 0;
-    BITMAP *page = create_bitmap(SCREEN_W, SCREEN_H);
-    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit;
-    BITMAP *roues[4];
-    Roue roues[NB_ROUES];
-    Checkpoint checkpoints[NB_CHECKPOINTS] = {0};
-    int dernier_cp = -1;
-    int timer_roues = 0;
-
-    if (!charger_ressources(&fond, &collision_map, &sprite1, &sprite2, &img_gros, roues, &img_petit)) return;
-
-    int temps_depart = clock();
-    int timerinterne = 0;
-    int afficher_gros = 0;
-    int afficher_petit = 0;
-    int gros_collision = 0;
-    int petit_collision = 0;
-    float facteur_perso = 1.0;
-    int gros_x = 1500, gros_y = 300;
-    int gros_largeur = img_gros->w, gros_hauteur = img_gros->h;
-    int petit_x = 2000, petit_y = 350;
-    int petit_largeur = img_petit->w, petit_hauteur = img_petit->h;
-    int etape_roue = 0, dernier_changement_roue = 0;
-    int roue_x = 800, roue_y = 300;
-
     init_jeu(&joueur);
     strcpy(joueur.nom, pseudo);
     joueur.niveau = 1;
-    int sprite_state = 0;
 
+    // Variables de défilement et de temps
+    int decor_scroll = 0;
+    int temps_depart = clock();
+
+    // Création de la page de dessin
+    BITMAP *page = create_bitmap(SCREEN_W, SCREEN_H);
+
+    // Chargement des ressources
+    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit;
+    BITMAP *roues[4];
+    if (!charger_ressources(&fond, &collision_map, &sprite1, &sprite2, &img_gros, roues, &img_petit)) {
+        destroy_bitmap(page);
+        return;
+    }
+
+    // Initialisation des roues
+    Roue roues_struct[NB_ROUES];
+    for (int i = 0; i < NB_ROUES; i++) {
+        roues_struct[i].x = 800 + i * 500; // Positionnement des roues
+        roues_struct[i].y = 300;
+        roues_struct[i].frame = 0;
+    }
+
+    // Initialisation des checkpoints
+    Checkpoint checkpoints[NB_CHECKPOINTS] = {0};
+    int dernier_cp = -1;
+
+    // Variables pour l'animation et l'état du joueur
+    int timer_roues = 0;
+    int sprite_state = 0;
+    int timerinterne = 0;
+    float facteur_perso = 1.0;
+
+    // Variables pour les objets spéciaux
+    int afficher_gros = 0, afficher_petit = 0;
+    int gros_collision = 0, petit_collision = 0;
+    int gros_x = 1500, gros_y = 300;
+    int petit_x = 2000, petit_y = 350;
+
+    // Boucle principale du jeu
     while (!key[KEY_ESC]) {
         int temps_actuel = (clock() - temps_depart) / CLOCKS_PER_SEC;
-        maj_roues(roues, &timer_roues);
 
-// Gestion des collisions entre le joueur et les roues
-gestion_collision_roues(&joueur, roues, NB_ROUES, &decor_scroll, checkpoints, dernier_cp);
+        // Mise à jour des roues
+        maj_roues(roues_struct, &timer_roues);
 
-// Mise à jour des checkpoints
-maj_checkpoints(&joueur, checkpoints, positions_cp, &dernier_cp, decor_scroll, sprite1);
+        // Gestion des collisions avec les roues
+        gestion_collision_roues(&joueur, roues_struct, NB_ROUES, &decor_scroll, checkpoints, dernier_cp);
 
-// Détection de l'arrivée
-if (detecter_arrivee(collision_map, joueur.x + decor_scroll, joueur.y, COLLISION_RADIUS, 0)) {
-    allegro_message("Félicitations, vous avez atteint l'arrivée !");
-    break;
-}
-    
-        gerer_saut(&joueur, &sprite_state, &timerinterne);
-        appliquer_physique(&joueur);
+        // Mise à jour des checkpoints
+        maj_checkpoints(&joueur, checkpoints, positions_cp, &dernier_cp, decor_scroll, sprite1);
 
-        if (verifier_collision_roue(&joueur, roues[etape_roue], roue_x, roue_y, decor_scroll)) {
-            allegro_message("Game Over - Vous avez touché la roue !");
+        // Détection de l'arrivée
+        if (detecter_arrivee(collision_map, joueur.x + decor_scroll, joueur.y, COLLISION_RADIUS, 0)) {
+            allegro_message("Félicitations, vous avez atteint l'arrivée !");
             break;
         }
 
+        // Gestion du saut
+        gerer_saut(&joueur, &sprite_state, &timerinterne);
+
+        // Application de la physique
+        appliquer_physique(&joueur);
+
+        // Gestion des collisions avec le décor
         gerer_collisions(&joueur, collision_map, decor_scroll);
 
+        // Vérification des limites de l'écran
         if (joueur.x + joueur.largeur < 0) {
             allegro_message("GAME OVER - Vous êtes sorti de l'écran !");
             break;
         }
 
+        // Mise à jour du défilement
         decor_scroll += DECOR_SCROLL_SPEED;
 
+        // Affichage des objets spéciaux en fonction du temps
         if (temps_actuel >= 4) afficher_gros = 1;
         if (temps_actuel >= 12) afficher_petit = 1;
 
+        // Gestion des collisions avec les objets spéciaux
         if (afficher_gros && !gros_collision) {
             int gros_x_ecran = gros_x - decor_scroll;
             if (collision(joueur.x, joueur.y, joueur.largeur, joueur.hauteur,
-                          gros_x_ecran, gros_y, gros_largeur, gros_hauteur)) {
+                          gros_x_ecran, gros_y, img_gros->w, img_gros->h)) {
                 gros_collision = 1;
-            }
-        }
-
-        if (gros_collision) {
-            if (facteur_perso < 1.5) {
                 facteur_perso = 1.5;
-
-                int ancien_largeur = joueur.largeur;
-                int ancien_hauteur = joueur.hauteur;
-
                 joueur.largeur = 40 * facteur_perso;
                 joueur.hauteur = 40 * facteur_perso;
-
-                joueur.x -= (joueur.largeur - ancien_largeur) / 2;
-                joueur.y -= (joueur.hauteur - ancien_hauteur) / 2;
             }
         }
-
 
         if (afficher_petit && !petit_collision) {
             int petit_x_ecran = petit_x - decor_scroll;
             if (collision(joueur.x, joueur.y, joueur.largeur, joueur.hauteur,
-                          petit_x_ecran, petit_y, petit_largeur, petit_hauteur)) {
+                          petit_x_ecran, petit_y, img_petit->w, img_petit->h)) {
                 petit_collision = 1;
-                          }
-        }
-
-        if (petit_collision) {
-            if (facteur_perso > 0.8) {
                 facteur_perso = 0.8;
-
-                int ancien_largeur = joueur.largeur;
-                int ancien_hauteur = joueur.hauteur;
-
                 joueur.largeur = 40 * facteur_perso;
                 joueur.hauteur = 40 * facteur_perso;
-
-                joueur.x -= (joueur.largeur - ancien_largeur) / 2;
-                joueur.y -= (joueur.hauteur - ancien_hauteur) / 2;
             }
         }
 
-
-        afficher_scene(page, fond, sprite1, sprite2, roues, etape_roue, &joueur, sprite_state,
+        // Affichage de la scène
+        afficher_scene(page, fond, sprite1, sprite2, roues, roues_struct[0].frame, &joueur, sprite_state,
                        facteur_perso, decor_scroll, temps_actuel, afficher_gros,
                        gros_collision, img_gros, gros_x, gros_y, afficher_petit,
                        petit_collision, img_petit, petit_x, petit_y);
@@ -384,8 +385,10 @@ if (detecter_arrivee(collision_map, joueur.x + decor_scroll, joueur.y, COLLISION
         rest(20);
     }
 
-    nettoyer_ressources(fond, collision_map, sprite1, sprite2, img_gros, roues, page, img_petit);
+    // Nettoyage des ressources
+    nettoyer_ressources(fond, collision_map, sprite1, sprite2, img_gros, img_petit, roues, page);
 }
+
 
 
 void menu_principal() {
