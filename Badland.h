@@ -29,7 +29,7 @@ void draw_jeu(Joueur *joueur, BITMAP *page, int decor_scroll, BITMAP *sprite);
 void menu_principal();
 void menu_selection_map(const char *pseudo);
 int charger_ressources(BITMAP **fond, BITMAP **collision_map, BITMAP **sprite1,
-                       BITMAP **sprite2, BITMAP **img_gros, BITMAP *roues[]);
+                       BITMAP **sprite2, BITMAP **img_gros, BITMAP **img_petit, BITMAP *roues[]);
 void gerer_roues(int *etape_roue, int *dernier_changement_roue, int temps_actuel);
 void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne);
 void appliquer_physique(Joueur *joueur);
@@ -40,9 +40,10 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
                     BITMAP *roues[], int etape_roue, Joueur *joueur, int sprite_state,
                     float facteur_perso, int decor_scroll, int temps_actuel,
                     int afficher_gros, int gros_collision, BITMAP *img_gros,
-                    int gros_x, int gros_y);
+                    int gros_x, int gros_y, int afficher_petit, int petit_collision, BITMAP *img_petit,
+                    int petit_x, int petit_y);
 void nettoyer_ressources(BITMAP *fond, BITMAP *collision_map, BITMAP *sprite1,
-                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *roues[], BITMAP *page);
+                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *img_petit, BITMAP *roues[], BITMAP *page);
 
 
 #endif //BADLAND_H
