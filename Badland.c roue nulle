@@ -24,12 +24,13 @@ void init_jeu(Joueur *joueur) {
 }
 
 int charger_ressources(BITMAP **fond, BITMAP **collision_map, BITMAP **sprite1,
-                       BITMAP **sprite2, BITMAP **img_gros, BITMAP *roues[4]) {
+                       BITMAP **sprite2, BITMAP **img_gros, BITMAP *roues[4], BITMAP **img_petit) {
     *fond = load_bitmap("grotte_lave.bmp", NULL);
     *collision_map = load_bitmap("grotte_lave_colli.bmp", NULL);
     *sprite1 = load_bitmap("personnage1.bmp", NULL);
     *sprite2 = load_bitmap("personnage2.bmp", NULL);
     *img_gros = load_bitmap("gros.bmp", NULL);
+    *img_petit = load_bitmap("petit.bmp", NULL);
 
     for (int i = 0; i < 4; i++) {
         char filename[20];
@@ -41,7 +42,7 @@ int charger_ressources(BITMAP **fond, BITMAP **collision_map, BITMAP **sprite1,
         }
     }
 
-    if (!*fond || !*sprite1 || !*sprite2 || !*collision_map || !*img_gros) {
+    if (!*fond || !*sprite1 || !*sprite2 || !*collision_map || !*img_gros || !*img_petit) {
         allegro_message("Erreur chargement ressources !");
         return 0;
     }
@@ -150,7 +151,8 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
                     BITMAP *roues[], int etape_roue, Joueur *joueur, int sprite_state,
                     float facteur_perso, int decor_scroll, int temps_actuel,
                     int afficher_gros, int gros_collision, BITMAP *img_gros,
-                    int gros_x, int gros_y) {
+                    int gros_x, int gros_y, int afficher_petit, int petit_collision, BITMAP *img_petit,
+                    int petit_x, int petit_y) {
     clear_bitmap(page);
     blit(fond, page, decor_scroll, 0, 0, 0, SCREEN_W, SCREEN_H);
 
@@ -160,6 +162,10 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
 
     if (afficher_gros && !gros_collision) {
         draw_sprite(page, img_gros, gros_x - decor_scroll, gros_y);
+    }
+
+    if (afficher_petit && !petit_collision) {
+        draw_sprite(page, img_petit, petit_x - decor_scroll, petit_y);
     }
 
     BITMAP *sprite = sprite_state ? sprite2 : sprite1;
@@ -175,12 +181,13 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
 }
 
 void nettoyer_ressources(BITMAP *fond, BITMAP *collision_map, BITMAP *sprite1,
-                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *roues[], BITMAP *page) {
+                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *img_petit, BITMAP *roues[], BITMAP *page) {
     destroy_bitmap(fond);
     destroy_bitmap(collision_map);
     destroy_bitmap(sprite1);
     destroy_bitmap(sprite2);
     destroy_bitmap(img_gros);
+    destroy_bitmap(img_petit);
     destroy_bitmap(page);
     for (int i = 0; i < 4; i++) destroy_bitmap(roues[i]);
 }
@@ -189,18 +196,22 @@ void jeu_scrolling(const char *pseudo) {
     Joueur joueur;
     int decor_scroll = 0;
     BITMAP *page = create_bitmap(SCREEN_W, SCREEN_H);
-    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros;
+    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit;
     BITMAP *roues[4];
 
-    if (!charger_ressources(&fond, &collision_map, &sprite1, &sprite2, &img_gros, roues)) return;
+    if (!charger_ressources(&fond, &collision_map, &sprite1, &sprite2, &img_gros, roues, &img_petit)) return;
 
     int temps_depart = clock();
     int timerinterne = 0;
     int afficher_gros = 0;
+    int afficher_petit = 0;
     int gros_collision = 0;
+    int petit_collision = 0;
     float facteur_perso = 1.0;
     int gros_x = 1500, gros_y = 300;
     int gros_largeur = img_gros->w, gros_hauteur = img_gros->h;
+    int petit_x = 2000, petit_y = 350;
+    int petit_largeur = img_petit->w, petit_hauteur = img_petit->h;
     int etape_roue = 0, dernier_changement_roue = 0;
     int roue_x = 800, roue_y = 300;
 
@@ -231,6 +242,7 @@ void jeu_scrolling(const char *pseudo) {
         decor_scroll += DECOR_SCROLL_SPEED;
 
         if (temps_actuel >= 4) afficher_gros = 1;
+        if (temps_actuel >= 12) afficher_petit = 1;
 
         if (afficher_gros && !gros_collision) {
             int gros_x_ecran = gros_x - decor_scroll;
@@ -241,18 +253,54 @@ void jeu_scrolling(const char *pseudo) {
         }
 
         if (gros_collision) {
-            facteur_perso += 0.01;
-            if (facteur_perso >= 2.0) facteur_perso = 2.0;
+            if (facteur_perso < 1.5) {
+                facteur_perso = 1.5;
+
+                int ancien_largeur = joueur.largeur;
+                int ancien_hauteur = joueur.hauteur;
+
+                joueur.largeur = 40 * facteur_perso;
+                joueur.hauteur = 40 * facteur_perso;
+
+                joueur.x -= (joueur.largeur - ancien_largeur) / 2;
+                joueur.y -= (joueur.hauteur - ancien_hauteur) / 2;
+            }
         }
+
+
+        if (afficher_petit && !petit_collision) {
+            int petit_x_ecran = petit_x - decor_scroll;
+            if (collision(joueur.x, joueur.y, joueur.largeur, joueur.hauteur,
+                          petit_x_ecran, petit_y, petit_largeur, petit_hauteur)) {
+                petit_collision = 1;
+                          }
+        }
+
+        if (petit_collision) {
+            if (facteur_perso > 0.8) {
+                facteur_perso = 0.8;
+
+                int ancien_largeur = joueur.largeur;
+                int ancien_hauteur = joueur.hauteur;
+
+                joueur.largeur = 40 * facteur_perso;
+                joueur.hauteur = 40 * facteur_perso;
+
+                joueur.x -= (joueur.largeur - ancien_largeur) / 2;
+                joueur.y -= (joueur.hauteur - ancien_hauteur) / 2;
+            }
+        }
+
 
         afficher_scene(page, fond, sprite1, sprite2, roues, etape_roue, &joueur, sprite_state,
                        facteur_perso, decor_scroll, temps_actuel, afficher_gros,
-                       gros_collision, img_gros, gros_x, gros_y);
+                       gros_collision, img_gros, gros_x, gros_y, afficher_petit,
+                       petit_collision, img_petit, petit_x, petit_y);
 
         rest(20);
     }
 
-    nettoyer_ressources(fond, collision_map, sprite1, sprite2, img_gros, roues, page);
+    nettoyer_ressources(fond, collision_map, sprite1, sprite2, img_gros, roues, page, img_petit);
 }
 
 
@@ -452,4 +500,3 @@ void menu_principal() {
     destroy_bitmap(img_mer);
     destroy_bitmap(buffer);
 }
-
