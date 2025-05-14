@@ -80,6 +80,19 @@ void jeu_scrolling(const char *pseudo) {
         allegro_message("Erreur chargement ressources !");
         return;
     }
+    BITMAP *roue_sprites[4];
+    for (int i = 0; i < 4; i++) {
+        char nom[20];
+        sprintf(nom, "roue%d.bmp", i);
+        roue_sprites[i] = load_bitmap(nom, NULL);
+        if (!roue_sprites[i]) {
+            allegro_message("Erreur chargement %s", nom);
+            return;
+        }
+    }
+    Roue roues[NB_ROUES] = {
+        {2000, 300, 0}  // Position X (décor), Y (écran), frame 0
+    };
     int collision_horizontale = 0;
     int collision_verticale = 0;
     init_jeu(&joueur);
@@ -178,7 +191,31 @@ void jeu_scrolling(const char *pseudo) {
             break;  // quitte la boucle → retour menu
         }
         // Bords écran
+        for (int i = 0; i < NB_ROUES; i++) {
+            int roue_ecran_x = roues[i].x - decor_scroll;
+            int roue_ecran_y = roues[i].y;
 
+            int jx = joueur.x + joueur.largeur / 2;
+            int jy = joueur.y + joueur.hauteur / 2;
+
+            int dx = jx - roue_ecran_x;
+            int dy = jy - roue_ecran_y;
+
+            if (dx * dx + dy * dy < 130 * 130) {
+                if (dernier_checkpoint != -1) {
+                    joueur.x = checkpoints[dernier_checkpoint].x;
+                    joueur.y = 320;  // hauteur sûre
+                    decor_scroll = checkpoint_positions[dernier_checkpoint][0] - joueur.x + 100;
+                    joueur.dy = 0;
+                    joueur.dx = 0;
+                    allegro_message("Tu as touché une roue ! Reprise depuis le dernier checkpoint.");
+                } else {
+                    allegro_message("Tu es mort ! Aucun checkpoint atteint. Retour au menu.");
+                    menu_principal();  // retour immédiat
+                    return;
+                }
+            }
+        }
 
         for (int i = 0; i < NB_CHECKPOINTS; i++) {
             if (!checkpoints[i].actif &&
@@ -211,7 +248,13 @@ void jeu_scrolling(const char *pseudo) {
                 break;
             }
         }
-
+        static int roue_timer = 0;
+        roue_timer++;
+        if (roue_timer % 6 == 0) {
+            for (int i = 0; i < NB_ROUES; i++) {
+                roues[i].frame = (roues[i].frame + 1) % 4;
+            }
+        }
 
         clear_bitmap(page);
         blit(fond, page, decor_scroll, 0, 0, 0, SCREEN_W, SCREEN_H);
@@ -227,7 +270,11 @@ void jeu_scrolling(const char *pseudo) {
         int temps_ecoule = (clock() - temps_depart) / CLOCKS_PER_SEC;
         sprintf(buffer_temps, "Temps : %d s", temps_ecoule);
         textout_ex(page, font, buffer_temps, 10, 10, makecol(255, 255, 255), -1);
-
+        for (int i = 0; i < NB_ROUES; i++) {
+            int draw_x = roues[i].x - decor_scroll - roue_sprites[0]->w / 2;
+            int draw_y = roues[i].y - roue_sprites[0]->h / 2;
+            draw_sprite(page, roue_sprites[roues[i].frame], draw_x, draw_y);
+        }
         blit(page, screen, 0, 0, 0, 0, SCREEN_W, SCREEN_H);
         rest(20);
     }
@@ -238,6 +285,9 @@ void jeu_scrolling(const char *pseudo) {
     destroy_bitmap(sprite2);
     destroy_bitmap(page);
     destroy_bitmap(checkpoint_sprite);
+    for (int i = 0; i < 4; i++) {
+        destroy_bitmap(roue_sprites[i]);
+    }
 }
 
 int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sprite_w, int sprite_h) {
