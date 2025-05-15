@@ -8,52 +8,25 @@ void initialisation_allegro() {
     install_keyboard();
     install_mouse();
     set_color_depth(desktop_color_depth());
-    if (set_gfx_mode(GFX_AUTODETECT_WINDOWED, SCREEN_W, SCREEN_H, 0, 0) != 0) {
+    if (set_gfx_mode(GFX_AUTODETECT_WINDOWED, MY_SCREEN_W, MY_SCREEN_H, 0, 0) != 0) {
         allegro_message("Problème mode graphique");
         exit(EXIT_FAILURE);
     }
     set_trans_blender(0, 0, 0, 128);
 }
 
-void init_jeu(Joueur *joueur) {
+void init_jeu(Joueur *joueur, TypeNiveau niveau) {
     joueur->x = 100;
-    joueur->y = SCREEN_H / 2;
+    joueur->y = MY_SCREEN_H / 2;
     joueur->largeur = 40;
     joueur->hauteur = 40;
     joueur->dy = 0;
     joueur->dx = 0;
 }
 
-int charger_ressources(BITMAP **fond, BITMAP **collision_map, BITMAP **sprite1,
-                       BITMAP **sprite2, BITMAP **img_gros, BITMAP *roues[4], BITMAP **img_petit,BITMAP **img_trainee) {
-    *fond = load_bitmap("grotte_lave.bmp", NULL);
-    *collision_map = load_bitmap("grotte_lave_colli.bmp", NULL);
-    *sprite1 = load_bitmap("personnage1.bmp", NULL);
-    *sprite2 = load_bitmap("personnage2.bmp", NULL);
-    *img_gros = load_bitmap("gros.bmp", NULL);
-    *img_petit = load_bitmap("petit.bmp", NULL);
 
-    for (int i = 0; i < 4; i++) {
-        char filename[20];
-        sprintf(filename, "roue%d.bmp", i);
-        roues[i] = load_bitmap(filename, NULL);
-        if (!roues[i]) {
-            allegro_message("Erreur chargement %s", filename);
-            return 0;
-        }
-    }
 
-    if (!*fond || !*sprite1 || !*sprite2 || !*collision_map || !*img_gros || !*img_petit) {
-        allegro_message("Erreur chargement ressources !");
-        return 0;
-    }
-    *img_trainee = load_bitmap("saut.bmp", NULL);
-    if (!*img_trainee) {
-        allegro_message("Erreur chargement saut.bmp !");
-        return 0;
-    }
-    return 1;
-}
+
 int detecter_arrivee(BITMAP *map, int cx, int cy, int rayon, int scroll) {
     for (int dx = -rayon; dx <= rayon; dx++) {
         for (int dy = -rayon; dy <= rayon; dy++) {
@@ -75,16 +48,27 @@ void maj_roues(Roue roues[], int *timer) {
     if (*timer % 6 == 0) {
         for (int i = 0; i < NB_ROUES; i++) {
             roues[i].frame = (roues[i].frame + 1) % 4;
+
+            // Mouvement vertical simple
+            if (roues[i].sens_vertical != 0) {
+                roues[i].y += 6 * roues[i].sens_vertical;
+
+                if (roues[i].y >= roues[i].limite_bas)
+                    roues[i].sens_vertical = -1;
+                else if (roues[i].y <= roues[i].limite_haut)
+                    roues[i].sens_vertical = 1;
+            }
         }
     }
 }
 
 // 4. Collision roue avec checkpoint
-int gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int decor_scroll) {
-    const int rayon_collision = 90;
+void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_scroll,
+                             Checkpoint checkpoints[], int dernier_cp, int *joueur_est_mort_ptr) {
+    const int rayon_collision = 90;  // Rayon "réaliste" de la roue
 
-    // Centre du joueur dans le monde (coordonnées globales)
-    int jx = joueur->x + decor_scroll + joueur->largeur / 2;
+    // Centre du joueur (repère global)
+    int jx = joueur->x + *decor_scroll + joueur->largeur / 2;
     int jy = joueur->y + joueur->hauteur / 2;
 
     for (int i = 0; i < nb; i++) {
@@ -96,36 +80,41 @@ int gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int decor_scro
         int distance2 = dx * dx + dy * dy;
 
         if (distance2 < rayon_collision * rayon_collision) {
-            return 1; // Collision détectée
+            if (dernier_cp != -1) {
+                *joueur_est_mort_ptr = 1;
+            } else {
+                allegro_message("Aucune sauvegarde ! Retour au menu.");
+                menu_principal();
+            }
+            return;
         }
     }
-    return 0; // Pas de collision
 }
 
 
 
 // 5. Checkpoints
-int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sw, int sh) {
-    const int CP_ZONE_LARGEUR = 170;
-    const int CP_ZONE_HAUTEUR = 170;
+int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sw, int checkpoint_h) {
+    const int CP_ZONE_LARGEUR = 130;
+    const int CP_ZONE_HAUTEUR = 130;
 
     int jx1 = joueur->x;
     int jy1 = joueur->y;
     int jx2 = jx1 + joueur->largeur;
     int jy2 = jy1 + joueur->hauteur;
 
-    // Zone du checkpoint positionnée en haut-gauche (comme le sprite)
-    int cx1 = cp_x - scroll;
-    int cy1 = cp_y - sh;
+    int cx1 = cp_x - scroll+40;
+    int cy1 = cp_y - checkpoint_h+40;  // 🔄 correction ici
     int cx2 = cx1 + CP_ZONE_LARGEUR;
     int cy2 = cy1 + CP_ZONE_HAUTEUR;
 
     return !(jx2 < cx1 || jx1 > cx2 || jy2 < cy1 || jy1 > cy2);
 }
 
-void maj_checkpoints(Joueur *joueur, Checkpoint checkpoints[], const int positions[][2], int *dernier_cp, int decor_scroll, BITMAP *sprite) {
+void maj_checkpoints(Joueur *joueur, Checkpoint checkpoints[], const int positions[][2], int *dernier_cp, int decor_scroll, BITMAP *sprite, BITMAP *img_checkpoint)
+ {
     for (int i = 0; i < NB_CHECKPOINTS; i++) {
-        if (!checkpoints[i].actif && joueur_sur_checkpoint(joueur, positions[i][0], positions[i][1], decor_scroll, sprite->w, sprite->h)) {
+        if (!checkpoints[i].actif && joueur_sur_checkpoint(joueur, positions[i][0], positions[i][1], decor_scroll, sprite->w, img_checkpoint->h)) {
             checkpoints[i].x = joueur->x;
             checkpoints[i].y = joueur->y;
             checkpoints[i].scroll = decor_scroll;
@@ -151,13 +140,13 @@ void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne, int *temps
         *sprite_state = 1;
         *timerinterne = 10;
         joueur->dy = JUMP_STRENGTH;
-        *temps_trainee = 200;  // active la traînée pendant 200 ms
+        *temps_trainee = 200;
     }
-
     if (*timerinterne > 0) {
         (*timerinterne)--;
         if (*timerinterne == 0) *sprite_state = 0;
     }
+
 }
 
 void appliquer_physique(Joueur *joueur) {
@@ -188,8 +177,9 @@ void gerer_collisions(Joueur *joueur, BITMAP *collision_map, int decor_scroll) {
             }
         }
     }
-
-    if (can_move_x && joueur->x < SCREEN_W / 3) joueur->x += 1;
+    if (can_move_x && joueur->x < MY_SCREEN_W / 3) {
+        joueur->x += 1;
+    }
     else {
         int pushed;
         do {
@@ -230,8 +220,8 @@ void gerer_collisions(Joueur *joueur, BITMAP *collision_map, int decor_scroll) {
         joueur->y = 10;
         joueur->dy = 0;
     }
-    if (joueur->y + joueur->hauteur > SCREEN_H - 10) {
-        joueur->y = SCREEN_H - joueur->hauteur - 10;
+    if (joueur->y + joueur->hauteur > MY_SCREEN_H - 10) {
+        joueur->y = MY_SCREEN_H - joueur->hauteur - 10;
         joueur->dy = 0;
     }
 
@@ -253,7 +243,7 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
                     const int positions_cp[][2], BITMAP *img_trainee, int temps_trainee) {
 
     clear_bitmap(page);
-    blit(fond, page, decor_scroll, 0, 0, 0, SCREEN_W, SCREEN_H);
+    blit(fond, page, decor_scroll, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
 
     afficher_roues(page, roues, roues_struct, nb_roues, decor_scroll);
 
@@ -261,7 +251,7 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
     for (int i = 0; i < NB_CHECKPOINTS; i++) {
         int x_affiche = positions_cp[i][0] - decor_scroll;
         int y_affiche = positions_cp[i][1] - img_checkpoint->h;
-
+        rect(page, x_affiche, y_affiche, x_affiche+170, y_affiche+170, makecol(255, 0, 0)); // rouge = hitbox
         if (checkpoints[i].actif) {
             draw_trans_sprite(page, img_checkpoint, x_affiche, y_affiche);
         } else {
@@ -277,10 +267,11 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
         draw_sprite(page, img_petit, petit_x - decor_scroll, petit_y);
     }
     if (temps_trainee > 0) {
-        int x_trainee = joueur->x - img_trainee->w+30;  // à gauche
-        int y_trainee = joueur->y + joueur->hauteur / 2 - img_trainee->h / 2 +40;
+        int x_trainee = joueur->x - img_trainee->w + 30;
+        int y_trainee = joueur->y + joueur->hauteur / 2 - img_trainee->h / 2 + 40;
         draw_sprite(page, img_trainee, x_trainee, y_trainee);
     }
+
     // Joueur
     BITMAP *sprite = sprite_state ? sprite2 : sprite1;
     int largeur = joueur->largeur;
@@ -293,82 +284,128 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
     textout_ex(page, font, buffer, 10, 10, makecol(255, 255, 255), -1);
 
     // Affichage final
-    blit(page, screen, 0, 0, 0, 0, SCREEN_W, SCREEN_H);
+    blit(page, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
 }
 
 void nettoyer_ressources(BITMAP *fond, BITMAP *collision_map, BITMAP *sprite1,
-                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *img_petit,
-                         BITMAP *roues[], BITMAP *page, BITMAP *img_trainee) {
-    destroy_bitmap(fond);
-    destroy_bitmap(collision_map);
-    destroy_bitmap(sprite1);
-    destroy_bitmap(sprite2);
-    destroy_bitmap(img_gros);
-    destroy_bitmap(img_petit);
-    destroy_bitmap(page);
-    destroy_bitmap(img_trainee);
-    for (int i = 0; i < 4; i++) destroy_bitmap(roues[i]);
-}
-void afficher_mort(BITMAP *page, BITMAP *explosion, Joueur *joueur) {
-    int x = joueur->x + joueur->largeur / 2 - explosion->w / 2;
-    int y = joueur->y + joueur->hauteur / 2 - explosion->h / 2;
-    draw_sprite(page, explosion, x, y);
-}
-void jeu_scrolling(const char *pseudo) {
-    // Initialisation du joueur
-    Joueur joueur;
-    init_jeu(&joueur);
-    strcpy(joueur.nom, pseudo);
-    joueur.niveau = 1;
-    int temps_trainee = 0; // en ms
+                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *img_petit, BITMAP *roues[], BITMAP *page) {
+    if (fond) destroy_bitmap(fond);
+    if (collision_map) destroy_bitmap(collision_map);
+    if (sprite1) destroy_bitmap(sprite1);
+    if (sprite2) destroy_bitmap(sprite2);
+    if (img_gros) destroy_bitmap(img_gros);
+    if (img_petit) destroy_bitmap(img_petit);
+    if (page) destroy_bitmap(page);
+    for (int i = 0; i < 4; i++) {
+        if (roues[i]) destroy_bitmap(roues[i]);
+    }
 
+
+}
+
+
+
+
+void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
+    // Niveau Volcan
+    niveaux[NIVEAU_VOLCAN] = (NiveauRessources){
+        .fond_path = "grotte_lave.bmp",
+        .collision_path = "grotte_lave_colli.bmp",
+        .sprite1_path = "personnage1.bmp",
+        .sprite2_path = "personnage2.bmp",
+        .img_gros_path = "gros.bmp",
+        .img_petit_path = "petit.bmp",
+        .explosion_path = "explosion_lave.bmp",
+        .trainee_path = "saut.bmp",
+        .checkpoint_path = "checkpoint.bmp",
+        .roues_paths = {"roue0.bmp", "roue1.bmp", "roue2.bmp", "roue3.bmp"},
+        .positions_cp = {{1583, 571}, {3500, 590}, {5670, 600}, {7650, 570}},
+        .roues_positions = {{3530, 170,0},
+        {4600, 390,0},
+        {6550, 130,0},
+        {6550, 420,0},{8000, 420,0}}
+    };
+
+    // Niveau Montagne (chemins différents)
+
+    niveaux[NIVEAU_MONTAGNE] = (NiveauRessources){
+        .fond_path = "foret.bmp",
+        .collision_path = "foret_colli.bmp",
+        .sprite1_path = "personnage1.bmp",
+        .sprite2_path = "personnage2.bmp",
+        .img_gros_path = "gros.bmp",
+        .img_petit_path = "petit.bmp",
+        .explosion_path = "explosion_foret.bmp",
+        .trainee_path = "saut2.bmp",
+        .checkpoint_path = "checkpoint2.bmp",
+        .roues_paths = {"roue0.bmp", "roue1.bmp", "roue2.bmp", "roue3.bmp"},
+        .positions_cp = {{600, 250}, {2400, 270}, {4000, 260}, {5300, 280}},
+        .roues_positions = {{900, 280, 0}}
+    };
+
+
+    // Niveau Mer (chemins différents)
+    niveaux[NIVEAU_MER] = (NiveauRessources){
+        .fond_path = "mer_fond.bmp",
+        .collision_path = "mer_colli.bmp",
+        .sprite1_path = "perso_mer1.bmp",
+        .sprite2_path = "perso_mer2.bmp",
+        .img_gros_path = "gros_mer.bmp",
+        .img_petit_path = "petit_mer.bmp",
+        .checkpoint_path = "checkpoint_mer.bmp",
+        .roues_paths = {"roue_mer0.bmp", "roue_mer1.bmp", "roue_mer2.bmp", "roue_mer3.bmp"},
+        .positions_cp = {{550, 320}, {2350, 340}, {3750, 330}, {5250, 350}},
+        .roues_positions = {{850, 320, 0}}
+    };
+}
+
+void afficher_mort(BITMAP *page, BITMAP *img_explosion, Joueur *joueur) {
+    int x = joueur->x + joueur->largeur / 2 - img_explosion->w / 2;
+    int y = joueur->y + joueur->hauteur / 2 - img_explosion->h / 2;
+    draw_sprite(page, img_explosion, x, y);
+}
+void jeu_scrolling(const char *pseudo, TypeNiveau niveau) {
+    int positions_cp[NB_CHECKPOINTS][2];
+    Joueur joueur;
+    init_jeu(&joueur, niveau);
+    strcpy(joueur.nom, pseudo);
+    joueur.niveau = niveau;
+
+    //Vérifiez que niveau est valide
+        if (niveau < 0 || niveau >= NB_NIVEAUX) {
+            allegro_message("Erreur : niveau invalide");
+            return;
+        }
     // Variables de défilement et de temps
     int decor_scroll = 0;
     int temps_depart = clock();
-    int joueur_est_mort = 0;     // 0 = vivant, 1 = explosion, 2 = attente réponse
-    int temps_mort = 0;
-    int explosion_affichee = 0;  // pour n’afficher l’explosion qu’une fois
-    // Création de la page de dessin
-    BITMAP *page = create_bitmap(SCREEN_W, SCREEN_H);
-    BITMAP *img_checkpoint = load_bitmap("checkpoint.bmp", NULL);
-    BITMAP *img_trainee;
-    // Chargement des ressources
-    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit;
-    BITMAP *roues[4];
-    BITMAP *explosion = load_bitmap("explosion_lave.bmp", NULL);
-    if (!explosion) {
-        allegro_message("Erreur chargement explosion_lave.bmp !");
-        return;
-    }
-    if (!charger_ressources(&fond, &collision_map, &sprite1, &sprite2, &img_gros, roues, &img_petit, &img_trainee)) {
-        destroy_bitmap(page);
-        return;
-    }
-    Checkpoint checkpoints[NB_CHECKPOINTS] = {0};
-    int dernier_cp = -1;
-    const int positions_roues[NB_ROUES][2] = {
-        {3530, 170},
-        {4600, 390},
-        {6550, 130},
-        {6550, 420}
-    };
 
+    // Création de la page de dessin
+    BITMAP *page = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
+
+
+    // Chargement des ressources spécifiques au niveau
+    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit,*img_explosion, *img_trainee, *img_checkpoint;
+    BITMAP *roues[4];
     // Initialisation des roues
     Roue roues_struct[NB_ROUES];
+    Checkpoint checkpoints[NB_CHECKPOINTS];
+
+    charger_ressources_niveau(niveau, &fond, &collision_map, &sprite1, &sprite2,
+                           &img_gros, roues, &img_petit, &img_explosion, &img_trainee, &img_checkpoint,
+                           roues_struct, checkpoints, positions_cp);
+
+
+
+
     for (int i = 0; i < NB_ROUES; i++) {
-        roues_struct[i].x = positions_roues[i][0];
-        roues_struct[i].y = positions_roues[i][1];
         roues_struct[i].frame = 0;
     }
 
     // Initialisation des checkpoints
 
-    const int positions_cp[NB_CHECKPOINTS][2] = {
-        {1583, 571},
-        {3577, 580},
-        {5370, 530},
-        {7180, 470}
-    };
+    int dernier_cp = -1;
+
     // Variables pour l'animation et l'état du joueur
     int timer_roues = 0;
     int sprite_state = 0;
@@ -381,155 +418,210 @@ void jeu_scrolling(const char *pseudo) {
     int gros_x = 1500, gros_y = 300;
     int petit_x = 2000, petit_y = 350;
 
+    int joueur_est_mort = 0;     // 0 = vivant, 1 = explosion, 2 = attente
+    int explosion_affichee = 0;
+    int temps_mort = 0;
+    int temps_trainee = 0;
+
     // Boucle principale du jeu
     while (!key[KEY_ESC]) {
-    int temps_actuel = (clock() - temps_depart) / CLOCKS_PER_SEC;
+        int temps_actuel = (clock() - temps_depart) / CLOCKS_PER_SEC;
+        if (joueur_est_mort == 1) {
+            if (!explosion_affichee) {
+                afficher_scene(page, fond, sprite1, sprite2,
+                               roues, roues_struct, NB_ROUES, &joueur, sprite_state,
+                               facteur_perso, decor_scroll, temps_actuel,
+                               afficher_gros, gros_collision, img_gros, gros_x, gros_y,
+                               afficher_petit, petit_collision, img_petit, petit_x, petit_y,
+                               img_checkpoint, checkpoints, positions_cp,
+                               img_trainee, temps_trainee);
 
-    // PHASE 1 : Explosion (avant message)
-    if (joueur_est_mort == 1) {
-        if (!explosion_affichee) {
-            // Affiche toute la scène comme d’habitude
-            afficher_scene(page, fond, sprite1, sprite2,
-                           roues, roues_struct, NB_ROUES, &joueur, sprite_state,
-                           facteur_perso, decor_scroll, temps_actuel,
-                           afficher_gros, gros_collision, img_gros, gros_x, gros_y,
-                           afficher_petit, petit_collision, img_petit, petit_x, petit_y,
-                           img_checkpoint, checkpoints, positions_cp,
-                           img_trainee, temps_trainee);
+                afficher_mort(page, img_explosion, &joueur);
+                blit(page, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
 
-            // Puis ajoute l'explosion au-dessus
-            afficher_mort(page, explosion, &joueur);
+                explosion_affichee = 1;
+                temps_mort = clock();
+            }
 
-            // Et envoie tout à l'écran
-            blit(page, screen, 0, 0, 0, 0, SCREEN_W, SCREEN_H);
-
-            explosion_affichee = 1;
-            temps_mort = clock();  // chrono démarré
+            if ((clock() - temps_mort) >= 1000) {
+                joueur_est_mort = 2;
+                explosion_affichee = 0;
+            } else {
+                rest(20);
+                continue;
+            }
         }
 
-        if ((clock() - temps_mort) >= 1000) {
-            joueur_est_mort = 2;  // passer à l'affichage du message
-            explosion_affichee = 0;
-        } else {
-            rest(20);
-            continue;  // attendre 1s complète
-        }
-    }
+        // PHASE 2 : Message et repositionnement
+        if (joueur_est_mort == 2) {
+            allegro_message("Vous êtes mort ! Appuyez sur une touche pour reprendre.");
 
-    // PHASE 2 : Message + repositionnement
-    if (joueur_est_mort == 2) {
-        allegro_message("Vous êtes mort ! Appuyez sur une touche pour reprendre.");
-
-        if (dernier_cp != -1) {
-            joueur.x = checkpoints[dernier_cp].x;
-            joueur.y = checkpoints[dernier_cp].y;
-            decor_scroll = checkpoints[dernier_cp].scroll;
-            joueur.dx = joueur.dy = 0;
-            joueur_est_mort = 0;  // retour à l'état normal
-        } else {
-            allegro_message("Aucun checkpoint. Retour au menu.");
-            menu_principal();
-            return;
-        }
-        continue;  // éviter un frame glitch à la réapparition
-    }
-
-    // Normal game logic
-    maj_roues(roues_struct, &timer_roues);
-
-    if (gestion_collision_roues(&joueur, roues_struct, NB_ROUES, decor_scroll)) {
-        if (dernier_cp != -1) {
-            joueur_est_mort = 1;  // décalage vers séquence de mort
-        } else {
-            allegro_message("Aucun checkpoint. Retour au menu.");
-            menu_principal();
-            return;
-        }
-        // ❌ NE METS PAS DE `continue` ICI !
-    }
-
-    maj_checkpoints(&joueur, checkpoints, positions_cp, &dernier_cp, decor_scroll, sprite1);
-
-    if (detecter_arrivee(collision_map, joueur.x + decor_scroll, joueur.y, COLLISION_RADIUS, 0)) {
-        allegro_message("Félicitations, vous avez atteint l'arrivée !");
-        break;
-    }
-
-    gerer_saut(&joueur, &sprite_state, &timerinterne, &temps_trainee);
-    appliquer_physique(&joueur);
-    gerer_collisions(&joueur, collision_map, decor_scroll);
-
-    // Sortie de l'écran à gauche
-    if (joueur.x + joueur.largeur < 0) {
-        if (dernier_cp != -1) {
-            allegro_message("Tu es sorti de l'écran ! Reprise au dernier checkpoint.");
-            joueur.x = checkpoints[dernier_cp].x;
-            joueur.y = checkpoints[dernier_cp].y;
-            decor_scroll = checkpoints[dernier_cp].scroll;
-            joueur.dx = joueur.dy = 0;
+            if (dernier_cp != -1) {
+                joueur.x = checkpoints[dernier_cp].x;
+                joueur.y = checkpoints[dernier_cp].y;
+                decor_scroll = checkpoints[dernier_cp].scroll;
+                joueur.dx = joueur.dy = 0;
+                joueur_est_mort = 0;
+            } else {
+                allegro_message("Aucun checkpoint. Retour au menu.");
+                menu_principal();
+                return;
+            }
             continue;
-        } else {
-            allegro_message("GAME OVER - Vous êtes sorti de l'écran !");
+        }
+
+        // Mise à jour des roues
+        maj_roues(roues_struct, &timer_roues);
+
+        // Gestion des collisions avec les roues
+        gestion_collision_roues(&joueur, roues_struct, NB_ROUES, &decor_scroll,
+                        checkpoints, dernier_cp, &joueur_est_mort);
+
+        // Mise à jour des checkpoints
+        maj_checkpoints(&joueur, checkpoints, positions_cp, &dernier_cp, decor_scroll, sprite1, img_checkpoint);
+
+
+        // Détection de l'arrivée
+        if (detecter_arrivee(collision_map, joueur.x + decor_scroll, joueur.y, COLLISION_RADIUS, 0)) {
+            allegro_message("Félicitations, vous avez atteint l'arrivée !");
             break;
         }
-    }
 
-    // Scroll automatique
-    decor_scroll += DECOR_SCROLL_SPEED;
+        // Gestion du saut
+        gerer_saut(&joueur, &sprite_state, &timerinterne, &temps_trainee);
 
-    // Apparition objets
-    if (temps_actuel >= 4) afficher_gros = 1;
-    if (temps_actuel >= 12) afficher_petit = 1;
+        // Application de la physique
+        appliquer_physique(&joueur);
 
-    // Collision gros/petit
-    if (afficher_gros && !gros_collision) {
-        int gros_x_ecran = gros_x - decor_scroll;
-        if (collision(joueur.x, joueur.y, joueur.largeur, joueur.hauteur,
-                      gros_x_ecran, gros_y, img_gros->w, img_gros->h)) {
-            gros_collision = 1;
-            facteur_perso = 1.5;
-            joueur.largeur = 40 * facteur_perso;
-            joueur.hauteur = 40 * facteur_perso;
+        // Gestion des collisions avec le décor
+        gerer_collisions(&joueur, collision_map, decor_scroll);
+
+        // Vérification des limites de l'écran
+        if (joueur.x + joueur.largeur < 0) {
+            if (dernier_cp != -1) {
+                allegro_message("Tu es sorti de l'écran ! Reprise au dernier checkpoint.");
+                joueur.x = checkpoints[dernier_cp].x;
+                joueur.y = checkpoints[dernier_cp].y;
+                decor_scroll = checkpoints[dernier_cp].scroll;
+                joueur.dx = joueur.dy = 0;
+            } else {
+                allegro_message("Retour au menu principal.");
+                menu_principal();
+                break;
+            }
+        }
+
+
+        // Mise à jour du défilement
+        decor_scroll += DECOR_SCROLL_SPEED;
+
+        // Affichage des objets spéciaux en fonction du temps
+        if (temps_actuel >= 4) afficher_gros = 1;
+        if (temps_actuel >= 12) afficher_petit = 1;
+
+        // Gestion des collisions avec les objets spéciaux
+        if (afficher_gros && !gros_collision) {
+            int gros_x_ecran = gros_x - decor_scroll;
+            if (collision(joueur.x, joueur.y, joueur.largeur, joueur.hauteur,
+                          gros_x_ecran, gros_y, img_gros->w, img_gros->h)) {
+                gros_collision = 1;
+                facteur_perso = 1.5;
+                joueur.largeur = 40 * facteur_perso;
+                joueur.hauteur = 40 * facteur_perso;
+            }
+        }
+
+        if (afficher_petit && !petit_collision) {
+            int petit_x_ecran = petit_x - decor_scroll;
+            if (collision(joueur.x, joueur.y, joueur.largeur, joueur.hauteur,
+                          petit_x_ecran, petit_y, img_petit->w, img_petit->h)) {
+                petit_collision = 1;
+                facteur_perso = 0.8;
+                joueur.largeur = 40 * facteur_perso;
+                joueur.hauteur = 40 * facteur_perso;
+            }
+        }
+        // Affichage de la scène
+        afficher_scene(page, fond, sprite1, sprite2,
+               roues, roues_struct, NB_ROUES, &joueur, sprite_state,
+               facteur_perso, decor_scroll, temps_actuel,
+               afficher_gros, gros_collision, img_gros, gros_x, gros_y,
+               afficher_petit, petit_collision, img_petit, petit_x, petit_y,
+               img_checkpoint, checkpoints, positions_cp,
+               img_trainee, temps_trainee);
+
+        rest(20);
+        if (temps_trainee > 0) {
+            temps_trainee -= 20;
+            if (temps_trainee < 0) temps_trainee = 0;
         }
     }
-
-    if (afficher_petit && !petit_collision) {
-        int petit_x_ecran = petit_x - decor_scroll;
-        if (collision(joueur.x, joueur.y, joueur.largeur, joueur.hauteur,
-                      petit_x_ecran, petit_y, img_petit->w, img_petit->h)) {
-            petit_collision = 1;
-            facteur_perso = 0.8;
-            joueur.largeur = 40 * facteur_perso;
-            joueur.hauteur = 40 * facteur_perso;
-        }
-    }
-
-    // Affichage complet de la scène
-    afficher_scene(page, fond, sprite1, sprite2,
-                   roues, roues_struct, NB_ROUES, &joueur, sprite_state,
-                   facteur_perso, decor_scroll, temps_actuel,
-                   afficher_gros, gros_collision, img_gros, gros_x, gros_y,
-                   afficher_petit, petit_collision, img_petit, petit_x, petit_y,
-                   img_checkpoint, checkpoints, positions_cp,
-                   img_trainee, temps_trainee);
-
-    // Timer traînée
-    rest(20);
-    if (temps_trainee > 0) {
-        temps_trainee -= 20;
-        if (temps_trainee < 0) temps_trainee = 0;
-    }
-}
 
     // Nettoyage des ressources
-    nettoyer_ressources(fond, collision_map, sprite1, sprite2, img_gros, img_petit, roues, page, img_trainee);
-
+    nettoyer_ressources(fond, collision_map, sprite1, sprite2, img_gros, img_petit, roues, page);
 }
 
+
+void charger_ressources_niveau(TypeNiveau niveau, BITMAP **fond, BITMAP **collision_map,
+                              BITMAP **sprite1, BITMAP **sprite2, BITMAP **img_gros,
+                              BITMAP *roues[], BITMAP **img_petit,BITMAP **img_explosion,BITMAP **img_trainee, BITMAP **img_checkpoint,
+                              Roue roues_struct[], Checkpoint checkpoints[],int positions_cp[][2]) {
+    static NiveauRessources niveaux[NB_NIVEAUX];
+    static int initialise = 0;
+
+    if (!initialise) {
+        initialiser_ressources_niveaux(niveaux);
+        initialise = 1;
+    }
+
+
+    NiveauRessources *n = &niveaux[niveau];
+
+    // Charger les bitmaps
+    *fond = load_bitmap(n->fond_path, NULL);
+    if (!*fond) {
+        allegro_message("Erreur : impossible de charger %s", n->fond_path);
+        exit(1);
+    }
+    *collision_map = load_bitmap(n->collision_path, NULL);
+    *sprite1 = load_bitmap(n->sprite1_path, NULL);
+    *sprite2 = load_bitmap(n->sprite2_path, NULL);
+    *img_gros = load_bitmap(n->img_gros_path, NULL);
+    *img_petit = load_bitmap(n->img_petit_path, NULL);
+    *img_explosion = load_bitmap(n->explosion_path, NULL);
+    *img_trainee = load_bitmap(n->trainee_path,NULL);
+    *img_checkpoint = load_bitmap(n->checkpoint_path, NULL);
+
+    for (int i = 0; i < 4; i++) {
+        roues[i] = load_bitmap(n->roues_paths[i], NULL);
+        if (!roues[i]) {
+            allegro_message("Erreur chargement %s", n->roues_paths[i]);
+            return;
+        }
+    }
+
+    // Initialiser les positions des roues et checkpoints
+    for (int i = 0; i < NB_ROUES; i++) {
+        roues_struct[i] = n->roues_positions[i];
+    }
+
+    for (int i = 0; i < NB_CHECKPOINTS; i++) {
+        checkpoints[i].x = n->positions_cp[i][0];
+        checkpoints[i].y = n->positions_cp[i][1];
+        checkpoints[i].actif = 0;
+
+        // 👇 copie les positions brutes dans positions_cp (pour affichage et détection)
+        positions_cp[i][0] = n->positions_cp[i][0];
+        positions_cp[i][1] = n->positions_cp[i][1];
+    }
+    roues_struct[4].sens_vertical = 1;
+    roues_struct[4].limite_haut = 150;
+    roues_struct[4].limite_bas = 450;
+}
 
 
 void menu_principal() {
-    BITMAP *buffer = create_bitmap(SCREEN_W, SCREEN_H);
+    BITMAP *buffer = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
     BITMAP *fondmenu = load_bitmap("fondmenu.bmp", NULL);
     BITMAP *marbre = load_bitmap("marbre.bmp", NULL);
     BITMAP *img_volcan = load_bitmap("volcan.bmp", NULL);
@@ -537,7 +629,7 @@ void menu_principal() {
     BITMAP *img_mer = load_bitmap("mer.bmp", NULL);
 
     if (!fondmenu || !marbre || !img_volcan || !img_montagne || !img_mer) {
-        allegro_message("Erreur chargement images menu.");
+        allegro_message("Erreur chargement images menu : %s", allegro_error);
         return;
     }
 
@@ -547,8 +639,8 @@ void menu_principal() {
 
     while (!key[KEY_ESC]) {
         clear(buffer);
-        stretch_blit(fondmenu, buffer, 0, 0, fondmenu->w, fondmenu->h, 0, 0, SCREEN_W, SCREEN_H);
-        textout_centre_ex(buffer, font, "==== BADLAND ====", SCREEN_W / 2, 30, makecol(255, 215, 0), -1);
+        stretch_blit(fondmenu, buffer, 0, 0, fondmenu->w, fondmenu->h, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+        textout_centre_ex(buffer, font, "==== BADLAND ====", MY_SCREEN_W / 2, 30, makecol(255, 215, 0), -1);
 
         if (etape_menu == 0) {
             // =========== SAISIE PSEUDO ===========
@@ -587,10 +679,10 @@ void menu_principal() {
         } else if (etape_menu == 1) {
             // ========== BOUTONS NOUVELLE / CHARGER ==========
             textprintf_ex(buffer, font, 10, 40, makecol(255, 255, 255), -1, "Joueur: %s", pseudo);
-            textout_centre_ex(buffer, font, "Que veux-tu faire ?", SCREEN_W / 2, 80, makecol(255, 255, 255), -1);
+            textout_centre_ex(buffer, font, "Que veux-tu faire ?", MY_SCREEN_W / 2, 80, makecol(255, 255, 255), -1);
 
             int btn_w = 250, btn_h = 80;
-            int btn_x = (SCREEN_W - btn_w) / 2;
+            int btn_x = (MY_SCREEN_W - btn_w) / 2;
             int btn_y1 = 180;
             int btn_y2 = 300;
 
@@ -599,13 +691,13 @@ void menu_principal() {
             stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, btn_x, btn_y2, btn_w, btn_h);
             rect(buffer, btn_x, btn_y1, btn_x + btn_w, btn_y1 + btn_h, makecol(0, 0, 0));
             rect(buffer, btn_x, btn_y2, btn_x + btn_w, btn_y2 + btn_h, makecol(0, 0, 0));
-            textout_centre_ex(buffer, font, "Nouvelle Partie", SCREEN_W / 2, btn_y1 + 30, makecol(0, 0, 0), -1);
-            textout_centre_ex(buffer, font, "Charger Partie", SCREEN_W / 2, btn_y2 + 30, makecol(0, 0, 0), -1);
+            textout_centre_ex(buffer, font, "Nouvelle Partie", MY_SCREEN_W / 2, btn_y1 + 30, makecol(0, 0, 0), -1);
+            textout_centre_ex(buffer, font, "Charger Partie", MY_SCREEN_W / 2, btn_y2 + 30, makecol(0, 0, 0), -1);
 
             // ==== BOUTONS RETOUR ET QUITTER ====
             int btn_ctrl_w = 100, btn_ctrl_h = 40;
-            int retour_x = 20, retour_y = SCREEN_H - 60;
-            int quit_x = SCREEN_W - 120, quit_y = SCREEN_H - 60;
+            int retour_x = 20, retour_y = MY_SCREEN_H - 60;
+            int quit_x = MY_SCREEN_W - 120, quit_y = MY_SCREEN_H - 60;
 
             // Bouton Retour
             stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, retour_x, retour_y, btn_ctrl_w, btn_ctrl_h);
@@ -617,23 +709,23 @@ void menu_principal() {
             rect(buffer, quit_x, quit_y, quit_x + btn_ctrl_w, quit_y + btn_ctrl_h, makecol(0, 0, 0));
             textout_centre_ex(buffer, font, "Quitter", quit_x + btn_ctrl_w / 2, quit_y + 12, makecol(0, 0, 0), -1);
             // Gestion clic
-            if (mouse_b & 1) {
-                rest(200);
-                // Nouvelle Partie
-                if (mouse_x >= btn_x && mouse_x <= btn_x + btn_w &&
-                    mouse_y >= btn_y1 && mouse_y <= btn_y1 + btn_h) {
-                    etape_menu = 2;
-                }
-                // Charger Partie
-                else if (mouse_x >= btn_x && mouse_x <= btn_x + btn_w &&
-                         mouse_y >= btn_y2 && mouse_y <= btn_y2 + btn_h) {
-                    allegro_message("Chargement de partie non disponible.");
-                }
-                // Retour
-                else if (mouse_x >= retour_x && mouse_x <= retour_x + btn_ctrl_w &&
-                         mouse_y >= retour_y && mouse_y <= retour_y + btn_ctrl_h) {
-                    etape_menu = 0;
-                }
+                if (mouse_b & 1) {
+                    rest(200);
+                    // Nouvelle Partie
+                    if (mouse_x >= btn_x && mouse_x <= btn_x + btn_w &&
+                        mouse_y >= btn_y1 && mouse_y <= btn_y1 + btn_h) {
+                        etape_menu = 2;
+                    }
+                    // Charger Partie
+                    else if (mouse_x >= btn_x && mouse_x <= btn_x + btn_w &&
+                             mouse_y >= btn_y2 && mouse_y <= btn_y2 + btn_h) {
+                        allegro_message("Chargement de partie non disponible.");
+                    }
+                    // Retour
+                    else if (mouse_x >= retour_x && mouse_x <= retour_x + btn_ctrl_w &&
+                             mouse_y >= retour_y && mouse_y <= retour_y + btn_ctrl_h) {
+                        etape_menu = 0;
+                    }
                 // Quitter
                 else if (mouse_x >= quit_x && mouse_x <= quit_x + btn_ctrl_w &&
                          mouse_y >= quit_y && mouse_y <= quit_y + btn_ctrl_h) {
@@ -644,13 +736,13 @@ void menu_principal() {
         } else if (etape_menu == 2) {
             // ========== CHOIX MAPS (inchangé) ==========
             textprintf_ex(buffer, font, 10, 40, makecol(255, 255, 255), -1, "Joueur: %s", pseudo);
-            textout_centre_ex(buffer, font, "Choisis un environnement :", SCREEN_W / 2, 80, makecol(255, 255, 255), -1);
+            textout_centre_ex(buffer, font, "Choisis un environnement :", MY_SCREEN_W / 2, 80, makecol(255, 255, 255), -1);
 
             int cadre_w = 220, cadre_h = 300;
             int img_w = 200, img_h = 280;
             int img_y = 130;
             int space = 40;
-            int start_x = (SCREEN_W - (3 * cadre_w + 2 * space)) / 2;
+            int start_x = (MY_SCREEN_W - (3 * cadre_w + 2 * space)) / 2;
 
             // VOLCAN
             stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, start_x, img_y, cadre_w, cadre_h);
@@ -674,8 +766,8 @@ void menu_principal() {
 
             // ==== BOUTONS RETOUR ET QUITTER ====
             int btn_ctrl_w = 100, btn_ctrl_h = 40;
-            int retour_x = 20, retour_y = SCREEN_H - 60;
-            int quit_x = SCREEN_W - 120, quit_y = SCREEN_H - 60;
+            int retour_x = 20, retour_y = MY_SCREEN_H - 60;
+            int quit_x = MY_SCREEN_W - 120, quit_y = MY_SCREEN_H - 60;
 
             // Bouton Retour
             stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, retour_x, retour_y, btn_ctrl_w, btn_ctrl_h);
@@ -692,14 +784,16 @@ void menu_principal() {
                 rest(200);
                 if (mouse_x >= start_x && mouse_x <= start_x + cadre_w &&
                     mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
-                    jeu_scrolling(pseudo);
-                } else if (mouse_x >= mx && mouse_x <= mx + cadre_w &&
-                           mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
-                    allegro_message("Montagne pas encore disponible !");
-                } else if (mouse_x >= merx && mouse_x <= merx + cadre_w &&
-                           mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
-                    allegro_message("Mer pas encore disponible !");
-                }
+                    jeu_scrolling(pseudo, NIVEAU_VOLCAN);
+                    }
+                else if (mouse_x >= mx && mouse_x <= mx + cadre_w &&
+                               mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
+                        jeu_scrolling(pseudo, NIVEAU_MONTAGNE);
+                               }
+                else if (mouse_x >= merx && mouse_x <= merx + cadre_w &&
+                                          mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
+                                   jeu_scrolling(pseudo, NIVEAU_MER);
+                                          }
                 // Retour
                 if (mouse_x >= retour_x && mouse_x <= retour_x + btn_ctrl_w &&
                     mouse_y >= retour_y && mouse_y <= retour_y + btn_ctrl_h) {
@@ -713,14 +807,15 @@ void menu_principal() {
             }
         }
 
-        blit(buffer, screen, 0, 0, 0, 0, SCREEN_W, SCREEN_H);
+        blit(buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
         rest(1);
     }
 
-    destroy_bitmap(fondmenu);
-    destroy_bitmap(marbre);
-    destroy_bitmap(img_volcan);
-    destroy_bitmap(img_montagne);
-    destroy_bitmap(img_mer);
-    destroy_bitmap(buffer);
+    if (fondmenu) destroy_bitmap(fondmenu);
+    if (marbre) destroy_bitmap(marbre);
+    if (img_volcan) destroy_bitmap(img_volcan);
+    if (img_montagne) destroy_bitmap(img_montagne);
+    if (img_mer) destroy_bitmap(img_mer);
+    if (buffer) destroy_bitmap(buffer);
+
 }
