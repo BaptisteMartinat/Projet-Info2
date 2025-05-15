@@ -13,7 +13,7 @@
 #define MAX_NAME_LENGTH 30
 #define SAVE_FILE "save.txt"
 #define NB_CHECKPOINTS 4
-#define NB_ROUES 5
+#define NB_ROUES 4
 #define COLLISION_RADIUS 18
 
 // --- Structures ---
