@@ -25,7 +25,7 @@ void init_jeu(Joueur *joueur) {
 }
 
 int charger_ressources(BITMAP **fond, BITMAP **collision_map, BITMAP **sprite1,
-                       BITMAP **sprite2, BITMAP **img_gros, BITMAP *roues[4], BITMAP **img_petit) {
+                       BITMAP **sprite2, BITMAP **img_gros, BITMAP *roues[4], BITMAP **img_petit,BITMAP **img_trainee) {
     *fond = load_bitmap("grotte_lave.bmp", NULL);
     *collision_map = load_bitmap("grotte_lave_colli.bmp", NULL);
     *sprite1 = load_bitmap("personnage1.bmp", NULL);
@@ -45,6 +45,11 @@ int charger_ressources(BITMAP **fond, BITMAP **collision_map, BITMAP **sprite1,
 
     if (!*fond || !*sprite1 || !*sprite2 || !*collision_map || !*img_gros || !*img_petit) {
         allegro_message("Erreur chargement ressources !");
+        return 0;
+    }
+    *img_trainee = load_bitmap("saut.bmp", NULL);
+    if (!*img_trainee) {
+        allegro_message("Erreur chargement saut.bmp !");
         return 0;
     }
     return 1;
@@ -150,12 +155,14 @@ void afficher_roues(BITMAP *page, BITMAP *roues[], Roue roues_struct[], int nb, 
     }
 }
 
-void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne) {
+void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne, int *temps_trainee) {
     if (keypressed() && (readkey() >> 8) == KEY_SPACE) {
         *sprite_state = 1;
         *timerinterne = 10;
         joueur->dy = JUMP_STRENGTH;
+        *temps_trainee = 200;  // active la traînée pendant 200 ms
     }
+
     if (*timerinterne > 0) {
         (*timerinterne)--;
         if (*timerinterne == 0) *sprite_state = 0;
@@ -190,7 +197,8 @@ void gerer_collisions(Joueur *joueur, BITMAP *collision_map, int decor_scroll) {
             }
         }
     }
-    if (can_move_x) joueur->x += 1;
+
+    if (can_move_x && joueur->x < SCREEN_W / 3) joueur->x += 1;
     else {
         int pushed;
         do {
@@ -250,7 +258,8 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
                     float facteur_perso, int decor_scroll, int temps_actuel,
                     int afficher_gros, int gros_collision, BITMAP *img_gros,
                     int gros_x, int gros_y, int afficher_petit, int petit_collision, BITMAP *img_petit,
-                    int petit_x, int petit_y, BITMAP *img_checkpoint, Checkpoint checkpoints[], const int positions_cp[][2]) {
+                    int petit_x, int petit_y, BITMAP *img_checkpoint, Checkpoint checkpoints[],
+                    const int positions_cp[][2], BITMAP *img_trainee, int temps_trainee) {
 
     clear_bitmap(page);
     blit(fond, page, decor_scroll, 0, 0, 0, SCREEN_W, SCREEN_H);
@@ -276,7 +285,11 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
     if (afficher_petit && !petit_collision) {
         draw_sprite(page, img_petit, petit_x - decor_scroll, petit_y);
     }
-
+    if (temps_trainee > 0) {
+        int x_trainee = joueur->x - img_trainee->w+30;  // à gauche
+        int y_trainee = joueur->y + joueur->hauteur / 2 - img_trainee->h / 2 +40;
+        draw_sprite(page, img_trainee, x_trainee, y_trainee);
+    }
     // Joueur
     BITMAP *sprite = sprite_state ? sprite2 : sprite1;
     int largeur = joueur->largeur;
@@ -293,7 +306,8 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
 }
 
 void nettoyer_ressources(BITMAP *fond, BITMAP *collision_map, BITMAP *sprite1,
-                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *img_petit, BITMAP *roues[], BITMAP *page) {
+                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *img_petit,
+                         BITMAP *roues[], BITMAP *page, BITMAP *img_trainee) {
     destroy_bitmap(fond);
     destroy_bitmap(collision_map);
     destroy_bitmap(sprite1);
@@ -301,6 +315,7 @@ void nettoyer_ressources(BITMAP *fond, BITMAP *collision_map, BITMAP *sprite1,
     destroy_bitmap(img_gros);
     destroy_bitmap(img_petit);
     destroy_bitmap(page);
+    destroy_bitmap(img_trainee);
     for (int i = 0; i < 4; i++) destroy_bitmap(roues[i]);
 }
 
@@ -310,6 +325,7 @@ void jeu_scrolling(const char *pseudo) {
     init_jeu(&joueur);
     strcpy(joueur.nom, pseudo);
     joueur.niveau = 1;
+    int temps_trainee = 0; // en ms
 
     // Variables de défilement et de temps
     int decor_scroll = 0;
@@ -318,30 +334,43 @@ void jeu_scrolling(const char *pseudo) {
     // Création de la page de dessin
     BITMAP *page = create_bitmap(SCREEN_W, SCREEN_H);
     BITMAP *img_checkpoint = load_bitmap("checkpoint.bmp", NULL);
+    BITMAP *img_trainee;
     // Chargement des ressources
     BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit;
     BITMAP *roues[4];
-    if (!charger_ressources(&fond, &collision_map, &sprite1, &sprite2, &img_gros, roues, &img_petit)) {
+    BITMAP *explosion = load_bitmap("explosion_lave.bmp", NULL);
+    if (!explosion) {
+        allegro_message("Erreur chargement explosion_lave.bmp !");
+        return;
+    }
+    if (!charger_ressources(&fond, &collision_map, &sprite1, &sprite2, &img_gros, roues, &img_petit, &img_trainee)) {
         destroy_bitmap(page);
         return;
     }
+    Checkpoint checkpoints[NB_CHECKPOINTS] = {0};
+    int dernier_cp = -1;
+    const int positions_roues[NB_ROUES][2] = {
+        {3530, 170},
+        {4600, 390},
+        {6550, 130},
+        {6550, 420}
+    };
 
     // Initialisation des roues
     Roue roues_struct[NB_ROUES];
     for (int i = 0; i < NB_ROUES; i++) {
-        roues_struct[i].x = 800 + i * 500; // Positionnement des roues
-        roues_struct[i].y = 300;
+        roues_struct[i].x = positions_roues[i][0];
+        roues_struct[i].y = positions_roues[i][1];
         roues_struct[i].frame = 0;
     }
 
     // Initialisation des checkpoints
-    Checkpoint checkpoints[NB_CHECKPOINTS] = {0};
-    int dernier_cp = -1;
+
     const int positions_cp[NB_CHECKPOINTS][2] = {
-        {500, 280},
-        {2300, 300},
-        {3700, 290},
-        {5200, 310}
+        {1583, 571},
+        {3577, 580},
+        {5370, 530},
+        {7180, 470}
     };
     // Variables pour l'animation et l'état du joueur
     int timer_roues = 0;
@@ -375,7 +404,7 @@ void jeu_scrolling(const char *pseudo) {
         }
 
         // Gestion du saut
-        gerer_saut(&joueur, &sprite_state, &timerinterne);
+        gerer_saut(&joueur, &sprite_state, &timerinterne, &temps_trainee);
 
         // Application de la physique
         appliquer_physique(&joueur);
@@ -434,13 +463,19 @@ void jeu_scrolling(const char *pseudo) {
                facteur_perso, decor_scroll, temps_actuel,
                afficher_gros, gros_collision, img_gros, gros_x, gros_y,
                afficher_petit, petit_collision, img_petit, petit_x, petit_y,
-               img_checkpoint, checkpoints, positions_cp);
+               img_checkpoint, checkpoints, positions_cp,
+               img_trainee, temps_trainee);
 
         rest(20);
+        if (temps_trainee > 0) {
+            temps_trainee -= 20;
+            if (temps_trainee < 0) temps_trainee = 0;
+        }
     }
 
     // Nettoyage des ressources
-    nettoyer_ressources(fond, collision_map, sprite1, sprite2, img_gros, img_petit, roues, page);
+    nettoyer_ressources(fond, collision_map, sprite1, sprite2, img_gros, img_petit, roues, page, img_trainee);
+
 }
 
 
