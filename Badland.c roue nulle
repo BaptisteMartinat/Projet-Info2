@@ -80,11 +80,11 @@ void maj_roues(Roue roues[], int *timer) {
 }
 
 // 4. Collision roue avec checkpoint
-void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_scroll, Checkpoint checkpoints[], int dernier_cp) {
-    const int rayon_collision = 90;  // Rayon "réaliste" de la roue
+int gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int decor_scroll) {
+    const int rayon_collision = 90;
 
-    // Centre du joueur (repère global)
-    int jx = joueur->x + *decor_scroll + joueur->largeur / 2;
+    // Centre du joueur dans le monde (coordonnées globales)
+    int jx = joueur->x + decor_scroll + joueur->largeur / 2;
     int jy = joueur->y + joueur->hauteur / 2;
 
     for (int i = 0; i < nb; i++) {
@@ -96,19 +96,10 @@ void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_sc
         int distance2 = dx * dx + dy * dy;
 
         if (distance2 < rayon_collision * rayon_collision) {
-            if (dernier_cp != -1) {
-                allegro_message(" Collision avec une roue ! Reprise au dernier checkpoint.");
-                joueur->x = checkpoints[dernier_cp].x;
-                joueur->y = checkpoints[dernier_cp].y;
-                *decor_scroll = checkpoints[dernier_cp].scroll;
-                joueur->dx = joueur->dy = 0;
-            } else {
-                allegro_message(" Aucune sauvegarde ! Retour au menu.");
-                menu_principal();
-            }
-            return; // On quitte après la première collision détectée
+            return 1; // Collision détectée
         }
     }
+    return 0; // Pas de collision
 }
 
 
@@ -318,7 +309,11 @@ void nettoyer_ressources(BITMAP *fond, BITMAP *collision_map, BITMAP *sprite1,
     destroy_bitmap(img_trainee);
     for (int i = 0; i < 4; i++) destroy_bitmap(roues[i]);
 }
-
+void afficher_mort(BITMAP *page, BITMAP *explosion, Joueur *joueur) {
+    int x = joueur->x + joueur->largeur / 2 - explosion->w / 2;
+    int y = joueur->y + joueur->hauteur / 2 - explosion->h / 2;
+    draw_sprite(page, explosion, x, y);
+}
 void jeu_scrolling(const char *pseudo) {
     // Initialisation du joueur
     Joueur joueur;
@@ -330,7 +325,9 @@ void jeu_scrolling(const char *pseudo) {
     // Variables de défilement et de temps
     int decor_scroll = 0;
     int temps_depart = clock();
-
+    int joueur_est_mort = 0;     // 0 = vivant, 1 = explosion, 2 = attente réponse
+    int temps_mort = 0;
+    int explosion_affichee = 0;  // pour n’afficher l’explosion qu’une fois
     // Création de la page de dessin
     BITMAP *page = create_bitmap(SCREEN_W, SCREEN_H);
     BITMAP *img_checkpoint = load_bitmap("checkpoint.bmp", NULL);
@@ -386,92 +383,132 @@ void jeu_scrolling(const char *pseudo) {
 
     // Boucle principale du jeu
     while (!key[KEY_ESC]) {
-        int temps_actuel = (clock() - temps_depart) / CLOCKS_PER_SEC;
+    int temps_actuel = (clock() - temps_depart) / CLOCKS_PER_SEC;
 
-        // Mise à jour des roues
-        maj_roues(roues_struct, &timer_roues);
-
-        // Gestion des collisions avec les roues
-        gestion_collision_roues(&joueur, roues_struct, NB_ROUES, &decor_scroll, checkpoints, dernier_cp);
-
-        // Mise à jour des checkpoints
-        maj_checkpoints(&joueur, checkpoints, positions_cp, &dernier_cp, decor_scroll, sprite1);
-
-        // Détection de l'arrivée
-        if (detecter_arrivee(collision_map, joueur.x + decor_scroll, joueur.y, COLLISION_RADIUS, 0)) {
-            allegro_message("Félicitations, vous avez atteint l'arrivée !");
-            break;
+    // PHASE 1 : Explosion (avant message)
+    if (joueur_est_mort == 1) {
+        if (!explosion_affichee) {
+            clear_bitmap(page);
+            blit(fond, page, decor_scroll, 0, 0, 0, SCREEN_W, SCREEN_H);
+            afficher_mort(page, explosion, &joueur);
+            blit(page, screen, 0, 0, 0, 0, SCREEN_W, SCREEN_H);
+            explosion_affichee = 1;
+            temps_mort = clock();  // démarrer timer
         }
 
-        // Gestion du saut
-        gerer_saut(&joueur, &sprite_state, &timerinterne, &temps_trainee);
-
-        // Application de la physique
-        appliquer_physique(&joueur);
-
-        // Gestion des collisions avec le décor
-        gerer_collisions(&joueur, collision_map, decor_scroll);
-
-        // Vérification des limites de l'écran
-        if (joueur.x + joueur.largeur < 0) {
-            if (dernier_cp != -1) {
-                allegro_message("Tu es sorti de l'écran ! Reprise au dernier checkpoint.");
-                joueur.x = checkpoints[dernier_cp].x;
-                joueur.y = checkpoints[dernier_cp].y;
-                decor_scroll = checkpoints[dernier_cp].scroll;
-                joueur.dx = joueur.dy = 0;
-                continue;
-            } else {
-                allegro_message("GAME OVER - Vous êtes sorti de l'écran !");
-                break;
-            }
-        }
-
-
-        // Mise à jour du défilement
-        decor_scroll += DECOR_SCROLL_SPEED;
-
-        // Affichage des objets spéciaux en fonction du temps
-        if (temps_actuel >= 4) afficher_gros = 1;
-        if (temps_actuel >= 12) afficher_petit = 1;
-
-        // Gestion des collisions avec les objets spéciaux
-        if (afficher_gros && !gros_collision) {
-            int gros_x_ecran = gros_x - decor_scroll;
-            if (collision(joueur.x, joueur.y, joueur.largeur, joueur.hauteur,
-                          gros_x_ecran, gros_y, img_gros->w, img_gros->h)) {
-                gros_collision = 1;
-                facteur_perso = 1.5;
-                joueur.largeur = 40 * facteur_perso;
-                joueur.hauteur = 40 * facteur_perso;
-            }
-        }
-
-        if (afficher_petit && !petit_collision) {
-            int petit_x_ecran = petit_x - decor_scroll;
-            if (collision(joueur.x, joueur.y, joueur.largeur, joueur.hauteur,
-                          petit_x_ecran, petit_y, img_petit->w, img_petit->h)) {
-                petit_collision = 1;
-                facteur_perso = 0.8;
-                joueur.largeur = 40 * facteur_perso;
-                joueur.hauteur = 40 * facteur_perso;
-            }
-        }
-        // Affichage de la scène
-        afficher_scene(page, fond, sprite1, sprite2,
-               roues, roues_struct, NB_ROUES, &joueur, sprite_state,
-               facteur_perso, decor_scroll, temps_actuel,
-               afficher_gros, gros_collision, img_gros, gros_x, gros_y,
-               afficher_petit, petit_collision, img_petit, petit_x, petit_y,
-               img_checkpoint, checkpoints, positions_cp,
-               img_trainee, temps_trainee);
-
-        rest(20);
-        if (temps_trainee > 0) {
-            temps_trainee -= 20;
-            if (temps_trainee < 0) temps_trainee = 0;
+        if ((clock() - temps_mort) >= 1000) {
+            joueur_est_mort = 2;  // passer à l'affichage du message
+            explosion_affichee = 0;
+        } else {
+            rest(20);
+            continue;  // attendre 1s complète
         }
     }
+
+    // PHASE 2 : Message + repositionnement
+    if (joueur_est_mort == 2) {
+        allegro_message("Vous êtes mort ! Appuyez sur une touche pour reprendre.");
+
+        if (dernier_cp != -1) {
+            joueur.x = checkpoints[dernier_cp].x;
+            joueur.y = checkpoints[dernier_cp].y;
+            decor_scroll = checkpoints[dernier_cp].scroll;
+            joueur.dx = joueur.dy = 0;
+            joueur_est_mort = 0;  // retour à l'état normal
+        } else {
+            allegro_message("Aucun checkpoint. Retour au menu.");
+            menu_principal();
+            return;
+        }
+        continue;  // éviter un frame glitch à la réapparition
+    }
+
+    // Normal game logic
+    maj_roues(roues_struct, &timer_roues);
+
+    if (gestion_collision_roues(&joueur, roues_struct, NB_ROUES, decor_scroll)) {
+        if (dernier_cp != -1) {
+            joueur_est_mort = 1;  // décalage vers séquence de mort
+        } else {
+            allegro_message("Aucun checkpoint. Retour au menu.");
+            menu_principal();
+            return;
+        }
+        // ❌ NE METS PAS DE `continue` ICI !
+    }
+
+    maj_checkpoints(&joueur, checkpoints, positions_cp, &dernier_cp, decor_scroll, sprite1);
+
+    if (detecter_arrivee(collision_map, joueur.x + decor_scroll, joueur.y, COLLISION_RADIUS, 0)) {
+        allegro_message("Félicitations, vous avez atteint l'arrivée !");
+        break;
+    }
+
+    gerer_saut(&joueur, &sprite_state, &timerinterne, &temps_trainee);
+    appliquer_physique(&joueur);
+    gerer_collisions(&joueur, collision_map, decor_scroll);
+
+    // Sortie de l'écran à gauche
+    if (joueur.x + joueur.largeur < 0) {
+        if (dernier_cp != -1) {
+            allegro_message("Tu es sorti de l'écran ! Reprise au dernier checkpoint.");
+            joueur.x = checkpoints[dernier_cp].x;
+            joueur.y = checkpoints[dernier_cp].y;
+            decor_scroll = checkpoints[dernier_cp].scroll;
+            joueur.dx = joueur.dy = 0;
+            continue;
+        } else {
+            allegro_message("GAME OVER - Vous êtes sorti de l'écran !");
+            break;
+        }
+    }
+
+    // Scroll automatique
+    decor_scroll += DECOR_SCROLL_SPEED;
+
+    // Apparition objets
+    if (temps_actuel >= 4) afficher_gros = 1;
+    if (temps_actuel >= 12) afficher_petit = 1;
+
+    // Collision gros/petit
+    if (afficher_gros && !gros_collision) {
+        int gros_x_ecran = gros_x - decor_scroll;
+        if (collision(joueur.x, joueur.y, joueur.largeur, joueur.hauteur,
+                      gros_x_ecran, gros_y, img_gros->w, img_gros->h)) {
+            gros_collision = 1;
+            facteur_perso = 1.5;
+            joueur.largeur = 40 * facteur_perso;
+            joueur.hauteur = 40 * facteur_perso;
+        }
+    }
+
+    if (afficher_petit && !petit_collision) {
+        int petit_x_ecran = petit_x - decor_scroll;
+        if (collision(joueur.x, joueur.y, joueur.largeur, joueur.hauteur,
+                      petit_x_ecran, petit_y, img_petit->w, img_petit->h)) {
+            petit_collision = 1;
+            facteur_perso = 0.8;
+            joueur.largeur = 40 * facteur_perso;
+            joueur.hauteur = 40 * facteur_perso;
+        }
+    }
+
+    // Affichage complet de la scène
+    afficher_scene(page, fond, sprite1, sprite2,
+                   roues, roues_struct, NB_ROUES, &joueur, sprite_state,
+                   facteur_perso, decor_scroll, temps_actuel,
+                   afficher_gros, gros_collision, img_gros, gros_x, gros_y,
+                   afficher_petit, petit_collision, img_petit, petit_x, petit_y,
+                   img_checkpoint, checkpoints, positions_cp,
+                   img_trainee, temps_trainee);
+
+    // Timer traînée
+    rest(20);
+    if (temps_trainee > 0) {
+        temps_trainee -= 20;
+        if (temps_trainee < 0) temps_trainee = 0;
+    }
+}
 
     // Nettoyage des ressources
     nettoyer_ressources(fond, collision_map, sprite1, sprite2, img_gros, img_petit, roues, page, img_trainee);
