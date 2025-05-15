@@ -388,12 +388,23 @@ void jeu_scrolling(const char *pseudo) {
     // PHASE 1 : Explosion (avant message)
     if (joueur_est_mort == 1) {
         if (!explosion_affichee) {
-            clear_bitmap(page);
-            blit(fond, page, decor_scroll, 0, 0, 0, SCREEN_W, SCREEN_H);
+            // Affiche toute la scène comme d’habitude
+            afficher_scene(page, fond, sprite1, sprite2,
+                           roues, roues_struct, NB_ROUES, &joueur, sprite_state,
+                           facteur_perso, decor_scroll, temps_actuel,
+                           afficher_gros, gros_collision, img_gros, gros_x, gros_y,
+                           afficher_petit, petit_collision, img_petit, petit_x, petit_y,
+                           img_checkpoint, checkpoints, positions_cp,
+                           img_trainee, temps_trainee);
+
+            // Puis ajoute l'explosion au-dessus
             afficher_mort(page, explosion, &joueur);
+
+            // Et envoie tout à l'écran
             blit(page, screen, 0, 0, 0, 0, SCREEN_W, SCREEN_H);
+
             explosion_affichee = 1;
-            temps_mort = clock();  // démarrer timer
+            temps_mort = clock();  // chrono démarré
         }
 
         if ((clock() - temps_mort) >= 1000) {
