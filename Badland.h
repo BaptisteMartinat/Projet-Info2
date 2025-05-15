@@ -63,11 +63,11 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
 void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne, int *temps_trainee);
 void appliquer_physique(Joueur *joueur);
 void gerer_collisions(Joueur *joueur, BITMAP *collision_map, int decor_scroll);
-
+void afficher_mort(BITMAP *page, BITMAP *explosion, Joueur *joueur);
 // --- Roues (affichage, animation, collisions) ---
 void gerer_roues(int *etape_roue, int *dernier_changement_roue, int temps_actuel); // version simple
 void maj_roues(Roue roues[], int *timer); // version avancée (animation par frames)
-void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_scroll, Checkpoint checkpoints[], int dernier_cp);
+int gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int decor_scroll);
 int verifier_collision_roue(Joueur *joueur, BITMAP *roue, int roue_x, int roue_y, int decor_scroll);
 
 // --- Checkpoints ---
