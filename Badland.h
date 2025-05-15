@@ -13,14 +13,13 @@
 #define MAX_NAME_LENGTH 30
 #define SAVE_FILE "save.txt"
 #define NB_CHECKPOINTS 4
-#define NB_ROUES 1
+#define NB_ROUES 5
 #define COLLISION_RADIUS 18
 
 // --- Structures ---
 typedef struct {
-    int x, y;
+    int x, y, largeur, hauteur;
     int dx, dy;
-    int largeur, hauteur;
     char nom[MAX_NAME_LENGTH];
     int niveau;
 } Joueur;
@@ -35,6 +34,7 @@ typedef struct {
     int actif;
 } Checkpoint;
 
+
 // --- Fonctions principales ---
 void initialisation_allegro();
 void init_jeu(Joueur *joueur);
@@ -44,9 +44,10 @@ void menu_selection_map(const char *pseudo);
 
 // --- Chargement / ressources ---
 int charger_ressources(BITMAP **fond, BITMAP **collision_map, BITMAP **sprite1,
-                       BITMAP **sprite2, BITMAP **img_gros, BITMAP **img_petit, BITMAP *roues[]);
+                       BITMAP **sprite2, BITMAP **img_gros, BITMAP **img_petit, BITMAP *roues[],BITMAP **img_trainee);
 void nettoyer_ressources(BITMAP *fond, BITMAP *collision_map, BITMAP *sprite1,
-                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *img_petit, BITMAP *roues[], BITMAP *page);
+                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *img_petit,
+                         BITMAP *roues[], BITMAP *page, BITMAP *img_trainee);
 
 // --- Affichage ---
 void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2,
@@ -54,10 +55,12 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
                     float facteur_perso, int decor_scroll, int temps_actuel,
                     int afficher_gros, int gros_collision, BITMAP *img_gros,
                     int gros_x, int gros_y, int afficher_petit, int petit_collision, BITMAP *img_petit,
-                    int petit_x, int petit_y, BITMAP *img_checkpoint, Checkpoint checkpoints[], const int positions_cp[][2]);
+                    int petit_x, int petit_y, BITMAP *img_checkpoint, Checkpoint checkpoints[],
+                    const int positions_cp[][2], BITMAP *img_trainee, int temps_trainee);
+
 
 // --- Gestion du joueur / actions ---
-void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne);
+void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne, int *temps_trainee);
 void appliquer_physique(Joueur *joueur);
 void gerer_collisions(Joueur *joueur, BITMAP *collision_map, int decor_scroll);
 
