@@ -340,7 +340,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .checkpoint_path = "checkpoint2.bmp",
         .roues_paths = {"roue0.bmp", "roue1.bmp", "roue2.bmp", "roue3.bmp"},
         .positions_cp = {{600, 250}, {2400, 270}, {4000, 260}, {5300, 280}},
-        .roues_positions = {{900, 280, 0}}
+        .roues_positions = {}
     };
 
 
