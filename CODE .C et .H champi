@@ -1,4 +1,4 @@
-//////////////////////////////// .C .////////////////////////
+////////////////////////////.C///////////////////:
 #include "Badland.h"
 #include <stdio.h>
 #include <string.h>
@@ -49,12 +49,23 @@ void maj_roues(Roue roues[], int *timer) {
     if (*timer % 6 == 0) {
         for (int i = 0; i < NB_ROUES; i++) {
             roues[i].frame = (roues[i].frame + 1) % 4;
+
+            // Mouvement vertical simple
+            if (roues[i].sens_vertical != 0) {
+                roues[i].y += 6 * roues[i].sens_vertical;
+
+                if (roues[i].y >= roues[i].limite_bas)
+                    roues[i].sens_vertical = -1;
+                else if (roues[i].y <= roues[i].limite_haut)
+                    roues[i].sens_vertical = 1;
+            }
         }
     }
 }
 
 // 4. Collision roue avec checkpoint
-void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_scroll, Checkpoint checkpoints[], int dernier_cp) {
+void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_scroll,
+                             Checkpoint checkpoints[], int dernier_cp, int *joueur_est_mort_ptr) {
     const int rayon_collision = 90;  // Rayon "réaliste" de la roue
 
     // Centre du joueur (repère global)
@@ -71,16 +82,12 @@ void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_sc
 
         if (distance2 < rayon_collision * rayon_collision) {
             if (dernier_cp != -1) {
-                allegro_message(" Collision avec une roue ! Reprise au dernier checkpoint.");
-                joueur->x = checkpoints[dernier_cp].x;
-                joueur->y = checkpoints[dernier_cp].y;
-                *decor_scroll = checkpoints[dernier_cp].scroll;
-                joueur->dx = joueur->dy = 0;
+                *joueur_est_mort_ptr = 1;
             } else {
-                allegro_message(" Aucune sauvegarde ! Retour au menu.");
+                allegro_message("Aucune sauvegarde ! Retour au menu.");
                 menu_principal();
             }
-            return; // On quitte après la première collision détectée
+            return;
         }
     }
 }
@@ -88,27 +95,27 @@ void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_sc
 
 
 // 5. Checkpoints
-int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sw, int sh) {
-    const int CP_ZONE_LARGEUR = 170;
-    const int CP_ZONE_HAUTEUR = 170;
+int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sw, int checkpoint_h) {
+    const int CP_ZONE_LARGEUR = 130;
+    const int CP_ZONE_HAUTEUR = 130;
 
     int jx1 = joueur->x;
     int jy1 = joueur->y;
     int jx2 = jx1 + joueur->largeur;
     int jy2 = jy1 + joueur->hauteur;
 
-    // Zone du checkpoint positionnée en haut-gauche (comme le sprite)
-    int cx1 = cp_x - scroll;
-    int cy1 = cp_y - sh;
+    int cx1 = cp_x - scroll+40;
+    int cy1 = cp_y - checkpoint_h+40;
     int cx2 = cx1 + CP_ZONE_LARGEUR;
     int cy2 = cy1 + CP_ZONE_HAUTEUR;
 
     return !(jx2 < cx1 || jx1 > cx2 || jy2 < cy1 || jy1 > cy2);
 }
 
-void maj_checkpoints(Joueur *joueur, Checkpoint checkpoints[], const int positions[][2], int *dernier_cp, int decor_scroll, BITMAP *sprite) {
+void maj_checkpoints(Joueur *joueur, Checkpoint checkpoints[], const int positions[][2], int *dernier_cp, int decor_scroll, BITMAP *sprite, BITMAP *img_checkpoint)
+ {
     for (int i = 0; i < NB_CHECKPOINTS; i++) {
-        if (!checkpoints[i].actif && joueur_sur_checkpoint(joueur, positions[i][0], positions[i][1], decor_scroll, sprite->w, sprite->h)) {
+        if (!checkpoints[i].actif && joueur_sur_checkpoint(joueur, positions[i][0], positions[i][1], decor_scroll, sprite->w, img_checkpoint->h)) {
             checkpoints[i].x = joueur->x;
             checkpoints[i].y = joueur->y;
             checkpoints[i].scroll = decor_scroll;
@@ -129,16 +136,18 @@ void afficher_roues(BITMAP *page, BITMAP *roues[], Roue roues_struct[], int nb, 
     }
 }
 
-void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne) {
+void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne, int *temps_trainee) {
     if (keypressed() && (readkey() >> 8) == KEY_SPACE) {
         *sprite_state = 1;
         *timerinterne = 10;
         joueur->dy = JUMP_STRENGTH;
+        *temps_trainee = 200;
     }
     if (*timerinterne > 0) {
         (*timerinterne)--;
         if (*timerinterne == 0) *sprite_state = 0;
     }
+
 }
 
 void appliquer_physique(Joueur *joueur) {
@@ -169,7 +178,9 @@ void gerer_collisions(Joueur *joueur, BITMAP *collision_map, int decor_scroll) {
             }
         }
     }
-    if (can_move_x) joueur->x += 1;
+    if (can_move_x && joueur->x < MY_SCREEN_W / 3) {
+        joueur->x += 1;
+    }
     else {
         int pushed;
         do {
@@ -224,23 +235,72 @@ int collision(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2) {
     return x1 + w1 > x2 && x1 < x2 + w2 && y1 + h1 > y2 && y1 < y2 + h2;
 }
 
-void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2,
+void gestion_collision_champis(Joueur *joueur, champi champis[], int nb, int *decor_scroll,
+                             Checkpoint checkpoints[], int dernier_cp, int *joueur_est_mort_ptr) {
+    // Nouveau : collision par rectangle plutôt que par cercle
+    int joueur_x = joueur->x + *decor_scroll;
+    int joueur_y = joueur->y;
+
+    for (int i = 0; i < nb; i++) {
+        // On considère que les champignons ont une taille de 50x50 (à ajuster)
+        int champi_x = champis[i].x;
+        int champi_y = champis[i].y;
+        int champi_w = 50;
+        int champi_h = 50;
+
+        if (collision(joueur_x, joueur_y, joueur->largeur, joueur->hauteur,
+                     champi_x, champi_y, champi_w, champi_h)) {
+            if (dernier_cp != -1) {
+                *joueur_est_mort_ptr = 1;
+            } else {
+                allegro_message("Aucune sauvegarde ! Retour au menu.");
+                menu_principal();
+            }
+            return;
+                     }
+    }
+}
+
+void afficher_scene(BITMAP *img_champi, champi champis[], const int position_champi[][2],BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2,
                     BITMAP *roues[], Roue roues_struct[], int nb_roues, Joueur *joueur, int sprite_state,
                     float facteur_perso, int decor_scroll, int temps_actuel,
                     int afficher_gros, int gros_collision, BITMAP *img_gros,
                     int gros_x, int gros_y, int afficher_petit, int petit_collision, BITMAP *img_petit,
-                    int petit_x, int petit_y, BITMAP *img_checkpoint, Checkpoint checkpoints[], const int positions_cp[][2]) {
+                    int petit_x, int petit_y, BITMAP *img_checkpoint, Checkpoint checkpoints[],
+                    const int positions_cp[][2], BITMAP *img_trainee, int temps_trainee) {
 
     clear_bitmap(page);
     blit(fond, page, decor_scroll, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
 
     afficher_roues(page, roues, roues_struct, nb_roues, decor_scroll);
 
+    // affichage des champis
+    for (int i = 0; i < NB_CHAMPI; i++) {
+        int x_affiche = position_champi[i][0] - decor_scroll;
+        int y_affiche = position_champi[i][1];
+        draw_sprite(page, img_champi, position_champi[i][0] - decor_scroll, position_champi[i][1]);
+        // Dans la boucle d'affichage des champignons
+        for (int i = 0; i < NB_CHAMPI; i++) {
+            int x_affiche = position_champi[i][0] - decor_scroll;
+            int y_affiche = position_champi[i][1];
+            draw_sprite(page, img_champi, x_affiche, y_affiche);
+
+            // DEBUG - Afficher la hitbox
+            rect(page, x_affiche, y_affiche,
+                 x_affiche + 50, y_affiche + 50,
+                 makecol(255, 0, 0));
+        }
+
+
+
+    }
+
+
     // Affichage des checkpoints inactifs
     for (int i = 0; i < NB_CHECKPOINTS; i++) {
         int x_affiche = positions_cp[i][0] - decor_scroll;
         int y_affiche = positions_cp[i][1] - img_checkpoint->h;
-
+        rect(page, x_affiche, y_affiche, x_affiche+170, y_affiche+170, makecol(255, 0, 0)); // rouge = hitbox
         if (checkpoints[i].actif) {
             draw_trans_sprite(page, img_checkpoint, x_affiche, y_affiche);
         } else {
@@ -254,6 +314,11 @@ void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2
     }
     if (afficher_petit && !petit_collision) {
         draw_sprite(page, img_petit, petit_x - decor_scroll, petit_y);
+    }
+    if (temps_trainee > 0) {
+        int x_trainee = joueur->x - img_trainee->w + 30;
+        int y_trainee = joueur->y + joueur->hauteur / 2 - img_trainee->h / 2 + 40;
+        draw_sprite(page, img_trainee, x_trainee, y_trainee);
     }
 
     // Joueur
@@ -299,10 +364,17 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .sprite2_path = "personnage2.bmp",
         .img_gros_path = "gros.bmp",
         .img_petit_path = "petit.bmp",
+        .explosion_path = "explosion_lave.bmp",
+        .trainee_path = "saut.bmp",
         .checkpoint_path = "checkpoint.bmp",
         .roues_paths = {"roue0.bmp", "roue1.bmp", "roue2.bmp", "roue3.bmp"},
-        .positions_cp = {{500, 280}, {2300, 300}, {3700, 290}, {5200, 310}},
-        .roues_positions = {{800, 300, 0}}
+        .positions_cp = {{1583, 571}, {3500, 590}, {5670, 600}, {7650, 570}},
+        .roues_positions = {{3530, 170,0},
+        {4600, 390,0},
+        {6550, 130,0},
+        {6550, 420,0},{8000, 420,0}},
+        .champi_path = "champignon.bmp",
+
     };
 
     // Niveau Montagne (chemins différents)
@@ -314,10 +386,15 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .sprite2_path = "personnage2.bmp",
         .img_gros_path = "gros.bmp",
         .img_petit_path = "petit.bmp",
-        .checkpoint_path = "checkpoint.bmp",
+        .explosion_path = "explosion_foret.bmp",
+        .trainee_path = "saut2.bmp",
+        .checkpoint_path = "checkpoint2.bmp",
         .roues_paths = {"roue0.bmp", "roue1.bmp", "roue2.bmp", "roue3.bmp"},
-        .positions_cp = {{600, 250}, {2400, 270}, {3800, 260}, {5300, 280}},
-        .roues_positions = {{900, 280, 0}}
+        .positions_cp = {{600, 250}, {2400, 270}, {4000, 260}, {5300, 280}},
+        .roues_positions = {},
+        .champi_path = "champignon.bmp",
+        .positions_champi =  {{2058, 416}, {4524, 456}, {6400, 334}, {8420, 340}}
+        //2088, 550}, {4609, 432}, {6121, 451}, {8234, 514}}
     };
 
 
@@ -332,12 +409,22 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .checkpoint_path = "checkpoint_mer.bmp",
         .roues_paths = {"roue_mer0.bmp", "roue_mer1.bmp", "roue_mer2.bmp", "roue_mer3.bmp"},
         .positions_cp = {{550, 320}, {2350, 340}, {3750, 330}, {5250, 350}},
-        .roues_positions = {{850, 320, 0}}
+        .roues_positions = {{850, 320, 0}},
+        .champi_path = "champignon.bmp",
+
     };
 }
 
 
+
+void afficher_mort(BITMAP *page, BITMAP *img_explosion, Joueur *joueur) {
+    int x = joueur->x + joueur->largeur / 2 - img_explosion->w / 2;
+    int y = joueur->y + joueur->hauteur / 2 - img_explosion->h / 2;
+    draw_sprite(page, img_explosion, x, y);
+}
 void jeu_scrolling(const char *pseudo, TypeNiveau niveau) {
+    int positions_cp[NB_CHECKPOINTS][2];
+    int position_champi[NB_CHAMPI][2];
     Joueur joueur;
     init_jeu(&joueur, niveau);
     strcpy(joueur.nom, pseudo);
@@ -357,33 +444,29 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau) {
 
 
     // Chargement des ressources spécifiques au niveau
-    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit, *img_checkpoint;
+    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit,*img_explosion, *img_trainee, *img_checkpoint, *img_champi;
     BITMAP *roues[4];
     // Initialisation des roues
     Roue roues_struct[NB_ROUES];
-    Checkpoint checkpoints[NB_CHECKPOINTS] = {0};
+    Checkpoint checkpoints[NB_CHECKPOINTS];
+    champi champis[NB_CHAMPI];
 
-    charger_ressources_niveau(niveau, &fond, &collision_map, &sprite1, &sprite2,
-                            &img_gros, roues, &img_petit, &img_checkpoint,
-                            roues_struct, checkpoints);
+
+    charger_ressources_niveau(&img_champi, champis, position_champi,niveau, &fond, &collision_map, &sprite1, &sprite2,
+                           &img_gros, roues, &img_petit, &img_explosion, &img_trainee, &img_checkpoint,
+                           roues_struct, checkpoints, positions_cp);
+
 
 
 
     for (int i = 0; i < NB_ROUES; i++) {
-        roues_struct[i].x = 800 + i * 500; // Positionnement des roues
-        roues_struct[i].y = 300;
         roues_struct[i].frame = 0;
     }
 
     // Initialisation des checkpoints
 
     int dernier_cp = -1;
-    const int positions_cp[NB_CHECKPOINTS][2] = {
-        {500, 280},
-        {2300, 300},
-        {3700, 290},
-        {5200, 310}
-    };
+
     // Variables pour l'animation et l'état du joueur
     int timer_roues = 0;
     int sprite_state = 0;
@@ -396,18 +479,73 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau) {
     int gros_x = 1500, gros_y = 300;
     int petit_x = 2000, petit_y = 350;
 
+    int joueur_est_mort = 0;     // 0 = vivant, 1 = explosion, 2 = attente
+    int explosion_affichee = 0;
+    int temps_mort = 0;
+    int temps_trainee = 0;
+
     // Boucle principale du jeu
     while (!key[KEY_ESC]) {
         int temps_actuel = (clock() - temps_depart) / CLOCKS_PER_SEC;
+        if (joueur_est_mort == 1) {
+            if (!explosion_affichee) {
+                afficher_scene(img_champi, champis, position_champi, page, fond, sprite1, sprite2,
+                               roues, roues_struct, NB_ROUES, &joueur, sprite_state,
+                               facteur_perso, decor_scroll, temps_actuel,
+                               afficher_gros, gros_collision, img_gros, gros_x, gros_y,
+                               afficher_petit, petit_collision, img_petit, petit_x, petit_y,
+                               img_checkpoint, checkpoints, positions_cp,
+                               img_trainee, temps_trainee);
+
+                afficher_mort(page, img_explosion, &joueur);
+                blit(page, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+                explosion_affichee = 1;
+                temps_mort = clock();
+            }
+
+            if ((clock() - temps_mort) >= 1000) {
+                joueur_est_mort = 2;
+                explosion_affichee = 0;
+            } else {
+                rest(20);
+                continue;
+            }
+        }
+
+        // PHASE 2 : Message et repositionnement
+        if (joueur_est_mort == 2) {
+            allegro_message("Vous êtes mort ! Appuyez sur une touche pour reprendre.");
+
+            if (dernier_cp != -1) {
+                joueur.x = checkpoints[dernier_cp].x;
+                joueur.y = checkpoints[dernier_cp].y;
+                decor_scroll = checkpoints[dernier_cp].scroll;
+                joueur.dx = joueur.dy = 0;
+                joueur_est_mort = 0;
+            } else {
+                allegro_message("Aucun checkpoint. Retour au menu.");
+                menu_principal();
+                return;
+            }
+            continue;
+        }
 
         // Mise à jour des roues
         maj_roues(roues_struct, &timer_roues);
 
         // Gestion des collisions avec les roues
-        gestion_collision_roues(&joueur, roues_struct, NB_ROUES, &decor_scroll, checkpoints, dernier_cp);
+        gestion_collision_roues(&joueur, roues_struct, NB_ROUES, &decor_scroll,
+                        checkpoints, dernier_cp, &joueur_est_mort);
+        if (niveau == NIVEAU_MONTAGNE) {
+            gestion_collision_champis(&joueur, champis, NB_CHAMPI, &decor_scroll,
+                                   checkpoints, dernier_cp, &joueur_est_mort);
+        }
+
 
         // Mise à jour des checkpoints
-        maj_checkpoints(&joueur, checkpoints, positions_cp, &dernier_cp, decor_scroll, sprite1);
+        maj_checkpoints(&joueur, checkpoints, positions_cp, &dernier_cp, decor_scroll, sprite1, img_checkpoint);
+
 
         // Détection de l'arrivée
         if (detecter_arrivee(collision_map, joueur.x + decor_scroll, joueur.y, COLLISION_RADIUS, 0)) {
@@ -416,7 +554,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau) {
         }
 
         // Gestion du saut
-        gerer_saut(&joueur, &sprite_state, &timerinterne);
+        gerer_saut(&joueur, &sprite_state, &timerinterne, &temps_trainee);
 
         // Application de la physique
         appliquer_physique(&joueur);
@@ -470,14 +608,19 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau) {
             }
         }
         // Affichage de la scène
-        afficher_scene(page, fond, sprite1, sprite2,
+        afficher_scene(img_champi, champis, position_champi, page, fond, sprite1, sprite2,
                roues, roues_struct, NB_ROUES, &joueur, sprite_state,
                facteur_perso, decor_scroll, temps_actuel,
                afficher_gros, gros_collision, img_gros, gros_x, gros_y,
                afficher_petit, petit_collision, img_petit, petit_x, petit_y,
-               img_checkpoint, checkpoints, positions_cp);
+               img_checkpoint, checkpoints, positions_cp,
+               img_trainee, temps_trainee);
 
         rest(20);
+        if (temps_trainee > 0) {
+            temps_trainee -= 20;
+            if (temps_trainee < 0) temps_trainee = 0;
+        }
     }
 
     // Nettoyage des ressources
@@ -485,10 +628,10 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau) {
 }
 
 
-void charger_ressources_niveau(TypeNiveau niveau, BITMAP **fond, BITMAP **collision_map,
+void charger_ressources_niveau(BITMAP **img_champignon,champi champis[], int position_champi[][2],TypeNiveau niveau, BITMAP **fond, BITMAP **collision_map,
                               BITMAP **sprite1, BITMAP **sprite2, BITMAP **img_gros,
-                              BITMAP *roues[], BITMAP **img_petit, BITMAP **img_checkpoint,
-                              Roue roues_struct[], Checkpoint checkpoints[]) {
+                              BITMAP *roues[], BITMAP **img_petit,BITMAP **img_explosion,BITMAP **img_trainee, BITMAP **img_checkpoint,
+                              Roue roues_struct[], Checkpoint checkpoints[],int positions_cp[][2]) {
     static NiveauRessources niveaux[NB_NIVEAUX];
     static int initialise = 0;
 
@@ -511,7 +654,10 @@ void charger_ressources_niveau(TypeNiveau niveau, BITMAP **fond, BITMAP **collis
     *sprite2 = load_bitmap(n->sprite2_path, NULL);
     *img_gros = load_bitmap(n->img_gros_path, NULL);
     *img_petit = load_bitmap(n->img_petit_path, NULL);
+    *img_explosion = load_bitmap(n->explosion_path, NULL);
+    *img_trainee = load_bitmap(n->trainee_path,NULL);
     *img_checkpoint = load_bitmap(n->checkpoint_path, NULL);
+    *img_champignon = load_bitmap(n->champi_path, NULL);
 
     for (int i = 0; i < 4; i++) {
         roues[i] = load_bitmap(n->roues_paths[i], NULL);
@@ -526,11 +672,26 @@ void charger_ressources_niveau(TypeNiveau niveau, BITMAP **fond, BITMAP **collis
         roues_struct[i] = n->roues_positions[i];
     }
 
+    //poisitons chamous
+    for (int i = 0; i < NB_CHAMPI; i++) {
+        champis[i].x = n->positions_champi[i][0];
+        champis[i].y = n->positions_champi[i][1];
+        position_champi[i][0] = n->positions_champi[i][0];  // Cette ligne est importante
+        position_champi[i][1] = n->positions_champi[i][1];  // Cette ligne aussi
+    }
+
     for (int i = 0; i < NB_CHECKPOINTS; i++) {
         checkpoints[i].x = n->positions_cp[i][0];
         checkpoints[i].y = n->positions_cp[i][1];
         checkpoints[i].actif = 0;
+
+
+        positions_cp[i][0] = n->positions_cp[i][0];
+        positions_cp[i][1] = n->positions_cp[i][1];
     }
+    roues_struct[4].sens_vertical = 1;
+    roues_struct[4].limite_haut = 150;
+    roues_struct[4].limite_bas = 450;
 }
 
 
@@ -733,111 +894,3 @@ void menu_principal() {
     if (buffer) destroy_bitmap(buffer);
 
 }
-
-
-
-///////////////////////////////////.h////////////////////////////////////
-#ifndef BADLAND_H
-#define BADLAND_H
-
-#include <allegro.h>
-#include <math.h>
-// --- Constantes globales ---
-#define MY_SCREEN_W 800
-#define MY_SCREEN_H 600
-
-#define SCENE_WIDTH 13500
-#define DECOR_SCROLL_SPEED 3
-#define GRAVITY 1
-#define JUMP_STRENGTH -11
-#define MAX_NAME_LENGTH 30
-#define SAVE_FILE "save.txt"
-#define NB_CHECKPOINTS 4
-#define NB_ROUES 1
-#define COLLISION_RADIUS 18
-
-// --- Structures ---
-// Types de niveaux
-typedef enum {
-    NIVEAU_VOLCAN,
-    NIVEAU_MONTAGNE,
-    NIVEAU_MER,
-    NB_NIVEAUX
-} TypeNiveau;
-
-// --- Structures ---
-typedef struct {
-    int x, y;
-    int dx, dy;
-    int largeur, hauteur;
-    char nom[MAX_NAME_LENGTH];
-    int niveau; // TypeNiveau
-} Joueur;
-
-typedef struct {
-    int x, y;
-    int frame;
-} Roue;
-
-typedef struct {
-    int x, y, scroll;
-    int actif;
-} Checkpoint;
-
-typedef struct {
-    char* fond_path;
-    char* collision_path;
-    char* sprite1_path;
-    char* sprite2_path;
-    char* img_gros_path;
-    char* img_petit_path;
-    char* roues_paths[4];
-    char* checkpoint_path;
-    int positions_cp[NB_CHECKPOINTS][2];
-    Roue roues_positions[NB_ROUES];
-} NiveauRessources;
-
-// --- Fonctions principales ---
-// --- Fonctions principales ---
-void initialisation_allegro();
-void init_jeu(Joueur *joueur, TypeNiveau niveau);
-void jeu_scrolling(const char *pseudo, TypeNiveau niveau);
-void menu_principal();
-void charger_ressources_niveau(TypeNiveau niveau, BITMAP **fond, BITMAP **collision_map,
-                              BITMAP **sprite1, BITMAP **sprite2, BITMAP **img_gros,
-                              BITMAP *roues[], BITMAP **img_petit, BITMAP **img_checkpoint,
-                              Roue roues_struct[], Checkpoint checkpoints[]);
-
-void nettoyer_ressources(BITMAP *fond, BITMAP *collision_map, BITMAP *sprite1,
-                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *img_petit, BITMAP *roues[], BITMAP *page);
-
-// --- Affichage ---
-void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2,
-                    BITMAP *roues[], Roue roues_struct[], int nb_roues, Joueur *joueur, int sprite_state,
-                    float facteur_perso, int decor_scroll, int temps_actuel,
-                    int afficher_gros, int gros_collision, BITMAP *img_gros,
-                    int gros_x, int gros_y, int afficher_petit, int petit_collision, BITMAP *img_petit,
-                    int petit_x, int petit_y, BITMAP *img_checkpoint, Checkpoint checkpoints[], const int positions_cp[][2]);
-
-// --- Gestion du joueur / actions ---
-void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne);
-void appliquer_physique(Joueur *joueur);
-void gerer_collisions(Joueur *joueur, BITMAP *collision_map, int decor_scroll);
-
-// --- Roues (affichage, animation, collisions) ---
-void gerer_roues(int *etape_roue, int *dernier_changement_roue, int temps_actuel); // version simple
-void maj_roues(Roue roues[], int *timer); // version avancée (animation par frames)
-void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_scroll, Checkpoint checkpoints[], int dernier_cp);
-int verifier_collision_roue(Joueur *joueur, BITMAP *roue, int roue_x, int roue_y, int decor_scroll);
-
-// --- Checkpoints ---
-void maj_checkpoints(Joueur *joueur, Checkpoint checkpoints[], const int positions[][2], int *dernier_cp, int decor_scroll, BITMAP *sprite);
-int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sw, int sh);
-
-// --- Arrivée / victoire ---
-int detecter_arrivee(BITMAP *map, int cx, int cy, int rayon, int scroll);
-
-// --- Utilitaire ---
-int collision(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2);
-
-#endif // BADLAND_H
