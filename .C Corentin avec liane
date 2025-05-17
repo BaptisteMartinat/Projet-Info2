@@ -433,7 +433,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .champi_path = "champignon.bmp",
         .liane_path = "liane.bmp",
         .positions_champi = {{2058, 416}, {4524, 456}, {6400, 334}, {8420, 340}},
-        .positions_liane = {{1058, 616}, {2524, 656}, {3400, 334}, {4420, 340}},
+        .positions_liane = {{2008,400}, {2524, 400}, {8400, 334}, {9420, 340}},
         .musique_path = "montagne.wav",
         .img_gros_path = "gros.bmp",
         .img_petit_path = "petit.bmp",
@@ -822,7 +822,7 @@ void charger_ressources_niveau(TypeNiveau niveau, BITMAP **fond, BITMAP **collis
 
 void menu_principal(SAMPLE* lave, SAMPLE* menu) {
     stop_sample(lave);
-    play_sample(menu, 200, 128, 950, 1);// volume max, centre, fréquence, répéter (1 = oui)
+    play_sample(menu, 0, 128, 950, 1);// volume max, centre, fréquence, répéter (1 = oui)
     BITMAP *buffer = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
     BITMAP *fondmenu = load_bitmap("fondmenu.bmp", NULL);
     BITMAP *marbre = load_bitmap("marbre.bmp", NULL);
@@ -987,7 +987,7 @@ void menu_principal(SAMPLE* lave, SAMPLE* menu) {
                 if (mouse_x >= start_x && mouse_x <= start_x + cadre_w &&
        mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
                     stop_sample(menu);
-                    play_sample(lave, 200, 100, 920, 1);
+                    play_sample(lave, 0, 100, 920, 1);
                     jeu_scrolling(pseudo, NIVEAU_VOLCAN, lave, menu);
                     stop_sample(lave);
 
@@ -995,7 +995,7 @@ void menu_principal(SAMPLE* lave, SAMPLE* menu) {
                 else if (mouse_x >= mx && mouse_x <= mx + cadre_w &&
                                mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
                     stop_sample(menu);
-                    play_sample(lave, 200, 100, 920, 1);
+                    play_sample(lave, 0, 100, 920, 1);
                         jeu_scrolling(pseudo, NIVEAU_MONTAGNE, lave, menu);
                     stop_sample(lave);
 
