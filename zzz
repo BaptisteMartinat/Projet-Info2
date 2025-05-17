@@ -1,4 +1,4 @@
-////////C//////
+////////C//////.C et .H Musique, Vite
 #include "Badland.h"
 #include <stdio.h>
 #include <string.h>
