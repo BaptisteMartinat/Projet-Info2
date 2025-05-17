@@ -188,28 +188,28 @@ void gestion_collision_champis(EtatJeu *etat) {
                      }
     }
 }
-
 void gestion_collision_lianes(EtatJeu *etat) {
     // Position globale du joueur (avec le défilement)
     int joueur_x = etat->joueur.x + etat->decor_scroll;
     int joueur_y = etat->joueur.y;
 
     for (int i = 0; i < NB_LIANE; i++) {
-        // Dimensions du liane
-        const int liane_w = 50;
-        const int liane_h = 50;
+        // Dimensions de la hitbox (80x200 pour une image 250x250)
+        const int liane_w = 80;
+        const int liane_h = 200;
 
-        // Vérification de collision rectangle-rectangle
+        // Position de la hitbox avec décalage pour centrage
+        int liane_x = etat->lianes[i].x + 85;
+        int liane_y = etat->lianes[i].y + 25;
+
         if (collision(joueur_x, joueur_y,
                      etat->joueur.largeur, etat->joueur.hauteur,
-                     etat->lianes[i].x, etat->lianes[i].y,
+                     liane_x, liane_y,
                      liane_w, liane_h)) {
 
             if (etat->dernier_cp != -1) {
-                // Mort avec checkpoint disponible
                 etat->joueur_est_mort = 1;
             } else {
-                // Retour au menu si aucun checkpoint
                 if (etat->musique_niveau) {
                     stop_sample(etat->musique_niveau);
                 }
@@ -401,8 +401,6 @@ int collision(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2) {
 void afficher_scene(EtatJeu *etat) {
     // Effacement du buffer
     clear_bitmap(etat->page);
-
-    // Affichage du fond avec défilement
     blit(etat->fond, etat->page, etat->decor_scroll, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
 
     for (int i = 0; i < 3; i++) {
@@ -445,14 +443,19 @@ void afficher_scene(EtatJeu *etat) {
         // Debug hitbox (optionnel)
         rect(etat->page, x, y, x+50, y+50, makecol(255, 0, 0));
     }
-
     for (int i = 0; i < NB_LIANE; i++) {
         int x = etat->position_liane[i][0] - etat->decor_scroll;
         int y = etat->position_liane[i][1];
+
+        // Dessin de la liane
         draw_sprite(etat->page, etat->img_liane, x, y);
 
-        // Debug hitbox (optionnel)
-        rect(etat->page, x, y, x+50, y+50, makecol(255, 0, 0));
+        // Debug hitbox (80x200 avec décalage 85,25)
+        int hitbox_x = x + 85;
+        int hitbox_y = y + 25;
+        rect(etat->page, hitbox_x, hitbox_y,
+             hitbox_x + 80, hitbox_y + 200,
+             makecol(255, 0, 0));
     }
 
     // Affichage des bonus
@@ -626,7 +629,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .champi_path = "champignon.bmp",
         .liane_path = "liane.bmp",
         .positions_champi = {{2058, 416}, {4524, 456}, {6400, 334}, {8420, 340}},
-        .positions_liane = {{2058, 316}, {4524, 256}, {6400, 134}, {7420, 340}},
+        .positions_liane = {{758, 316}, {4524, 256}, {6400, 134}, {7420, 340}},
         .musique_path = "montagne.wav",
         .img_gros_path = "gros.bmp",
         .img_petit_path = "petit.bmp",
@@ -832,6 +835,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
             gestion_collision_lianes(&etat);
 
         }
+
 
 
         // Gestion du saut
