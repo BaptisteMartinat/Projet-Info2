@@ -79,7 +79,7 @@ typedef struct {
 
 // Ajouter le prototype de fonction
 void gestion_collision_champis(Joueur *joueur, champi champis[], int nb, int *decor_scroll,
-                             Checkpoint checkpoints[], int dernier_cp, int *joueur_est_mort_ptr, SAMPLE* lave, SAMPLE* menu);
+                             Checkpoint checkpoints[], int dernier_cp, int *joueur_est_mort_ptr, SAMPLE* lave, SAMPLE* menu, BITMAP* img_explosion, BITMAP* page);
 
 // --- Fonctions principales ---
 // --- Fonctions principales ---
@@ -119,7 +119,7 @@ void gerer_roues(int *etape_roue, int *dernier_changement_roue, int temps_actuel
 void maj_roues(Roue roues[], int *timer); // version avancée (animation par frames)
 void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_scroll,
                             Checkpoint checkpoints[], int dernier_cp, int *joueur_est_mort_ptr,
-                            SAMPLE *menu, SAMPLE *lave);
+                            SAMPLE *menu, SAMPLE *lave, BITMAP* img_explosion, BITMAP* page);
 int verifier_collision_roue(Joueur *joueur, BITMAP *roue, int roue_x, int roue_y, int decor_scroll);
 
 // --- Checkpoints ---
