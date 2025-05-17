@@ -13,6 +13,7 @@
 #define GRAVITY 1
 #define JUMP_STRENGTH -11
 #define NB_CHAMPI 4
+#define NB_LIANE 4
 #define MAX_NAME_LENGTH 30
 #define SAVE_FILE "save.txt"
 #define NB_CHECKPOINTS 4
@@ -63,6 +64,11 @@ typedef struct {
 
 } champi;
 
+typedef struct {
+    int x, y, scroll;
+
+} liane;
+
 
 
 typedef struct {
@@ -74,7 +80,9 @@ typedef struct {
     char* img_gros_path;
     char* explosion_path;
     char* champi_path;
+    char* liane_path;
     int positions_champi[NB_CHAMPI][2];
+    int positions_liane[NB_LIANE][2];
     char* trainee_path;
     char* img_petit_path;
     char* roues_paths[4];
@@ -94,6 +102,7 @@ typedef struct {
     int joueur_est_mort;
     int positions_cp[NB_CHECKPOINTS][2];
     int position_champi[NB_CHAMPI][2];
+    int position_liane[NB_LIANE][2];
     int timer_saut;
     int temps_trainee;
     int temps_depart;
@@ -109,6 +118,7 @@ typedef struct {
     BITMAP *img_trainee;
     BITMAP *img_checkpoint;
     BITMAP *img_champi;
+    BITMAP *img_liane;
     BITMAP *roues[4];
 
     // Éléments du jeu
@@ -117,7 +127,7 @@ typedef struct {
 
     Checkpoint checkpoints[NB_CHECKPOINTS];
     champi champis[NB_CHAMPI];
-
+    liane lianes[NB_LIANE];
     // Sons
     SAMPLE *musique_niveau;
     SAMPLE *son_saut;
@@ -143,6 +153,7 @@ typedef struct {
 
 // Ajouter le prototype de fonction
 void gestion_collision_champis(EtatJeu *etat);
+void gestion_collision_lianes(EtatJeu *etat);
 
 // --- Fonctions principales ---
 // --- Fonctions principales ---
