@@ -409,7 +409,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .champi_path = "champignon.bmp",
         .liane_path = "liane.bmp",
         .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
-        .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
+        .positions_liane= {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .trainee_path = "saut.bmp",
         .img_vite_path = "vite.bmp",
         .musique_path = "lave.wav",
@@ -432,6 +432,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .img_vite_path = "vite.bmp",
         .champi_path = "champignon.bmp",
         .liane_path = "liane.bmp",
+        .positions_champi = {{2058, 416}, {4524, 456}, {6400, 334}, {8420, 340}},
         .positions_liane = {{1058, 416}, {2524, 456}, {3400, 334}, {4420, 340}},
         .musique_path = "montagne.wav",
         .img_gros_path = "gros.bmp",
@@ -505,7 +506,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE* lave, SAMPLE* 
 
 
     // Chargement des ressources spécifiques au niveau
-    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit,*img_explosion, *img_trainee, *img_checkpoint, *img_vite, *img_champi;
+    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit,*img_explosion, *img_trainee, *img_checkpoint, *img_vite, *img_champi, *img_liane;
     BITMAP *roues[4];
     // Initialisation des roues
     Roue roues_struct[NB_ROUES];
