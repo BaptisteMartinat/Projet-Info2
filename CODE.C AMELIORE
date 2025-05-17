@@ -189,6 +189,37 @@ void gestion_collision_champis(EtatJeu *etat) {
     }
 }
 
+void gestion_collision_lianes(EtatJeu *etat) {
+    // Position globale du joueur (avec le défilement)
+    int joueur_x = etat->joueur.x + etat->decor_scroll;
+    int joueur_y = etat->joueur.y;
+
+    for (int i = 0; i < NB_LIANE; i++) {
+        // Dimensions du liane
+        const int liane_w = 50;
+        const int liane_h = 50;
+
+        // Vérification de collision rectangle-rectangle
+        if (collision(joueur_x, joueur_y,
+                     etat->joueur.largeur, etat->joueur.hauteur,
+                     etat->lianes[i].x, etat->lianes[i].y,
+                     liane_w, liane_h)) {
+
+            if (etat->dernier_cp != -1) {
+                // Mort avec checkpoint disponible
+                etat->joueur_est_mort = 1;
+            } else {
+                // Retour au menu si aucun checkpoint
+                if (etat->musique_niveau) {
+                    stop_sample(etat->musique_niveau);
+                }
+                menu_principal(etat->musique_menu, etat->musique_jeu);
+            }
+            return;
+                     }
+    }
+}
+
 void maj_checkpoints(EtatJeu *etat) {
     for (int i = 0; i < NB_CHECKPOINTS; i++) {
         if (!etat->checkpoints[i].actif &&
@@ -415,6 +446,15 @@ void afficher_scene(EtatJeu *etat) {
         rect(etat->page, x, y, x+50, y+50, makecol(255, 0, 0));
     }
 
+    for (int i = 0; i < NB_LIANE; i++) {
+        int x = etat->position_liane[i][0] - etat->decor_scroll;
+        int y = etat->position_liane[i][1];
+        draw_sprite(etat->page, etat->img_liane, x, y);
+
+        // Debug hitbox (optionnel)
+        rect(etat->page, x, y, x+50, y+50, makecol(255, 0, 0));
+    }
+
     // Affichage des bonus
     // Affichage des bonus
     if (etat->bonus_actifs[0] && !etat->bonus_collision[0]) { // Gros
@@ -509,9 +549,9 @@ void nettoyer_ressources(EtatJeu *etat) {
         etat->img_checkpoint = NULL;
     }
 
-    if (etat->img_champi) {
-        destroy_bitmap(etat->img_champi);
-        etat->img_champi = NULL;
+    if (etat->img_liane) {
+        destroy_bitmap(etat->img_liane);
+        etat->img_liane = NULL;
     }
 
     // Roues
@@ -560,7 +600,9 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .img_petit_path = "petit.bmp",
         .explosion_path = "explosion_lave.bmp",
         .champi_path = "champignon.bmp",
+        .liane_path = "liane.bmp",
         .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
+        .positions_liane = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .trainee_path = "saut.bmp",
         .img_vite_path = "vite.bmp",
         .musique_path = "lave.wav",
@@ -582,7 +624,9 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .sprite2_path = "personnage2.bmp",
         .img_vite_path = "vite.bmp",
         .champi_path = "champignon.bmp",
+        .liane_path = "liane.bmp",
         .positions_champi = {{2058, 416}, {4524, 456}, {6400, 334}, {8420, 340}},
+        .positions_liane = {{700, 316}, {4524, 256}, {6400, 134}, {7420, 340}},
         .musique_path = "montagne.wav",
         .img_gros_path = "gros.bmp",
         .img_petit_path = "petit.bmp",
@@ -606,7 +650,9 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .sprite2_path = "perso_mer2.bmp",
         .img_vite_path = "vite.bmp",
         .champi_path = "champignon.bmp",
+        .liane_path = "liane.bmp",
         .positions_champi = {{0, 0}, {0, 0}, {0, 0}, {0, 0}}, // Positions par défaut
+        .positions_liane= {{0, 0}, {0, 0}, {0, 0}, {0, 0}}, // Positions par défaut
         .musique_path = "mer.wav",
         .explosion_path = "explosion_foret.bmp",
         .trainee_path = "saut2.bmp",
@@ -645,6 +691,8 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
     int positions_cp[NB_CHECKPOINTS][2];
     int position_champi[NB_CHAMPI][2];
     champi champis[NB_CHAMPI];
+    int position_liane[NB_LIANE][2];
+    liane lianes[NB_LIANE];
 
 
 
@@ -666,7 +714,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
 
 
     // Chargement des ressources spécifiques au niveau
-    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit,*img_explosion, *img_trainee, *img_checkpoint, *img_vite, *img_champi;
+    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit,*img_explosion, *img_trainee, *img_checkpoint, *img_vite, *img_champi, *img_liane;
     BITMAP *roues[4];
     // Initialisation des roues
     Roue roues_struct[NB_ROUES];
@@ -781,6 +829,8 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
 
         if (niveau == NIVEAU_MONTAGNE) {
             gestion_collision_champis(&etat);
+            gestion_collision_lianes(&etat);
+
         }
 
 
@@ -928,6 +978,7 @@ void charger_ressources_niveau(EtatJeu *etat) {
     etat->img_trainee = load_bitmap(n->trainee_path, NULL);
     etat->img_checkpoint = load_bitmap(n->checkpoint_path, NULL);
     etat->img_champi = load_bitmap(n->champi_path, NULL);
+    etat->img_liane = load_bitmap(n->liane_path, NULL);
 
     // Charger la musique du niveau
     etat->musique_niveau = load_sample(n->musique_path);
@@ -938,6 +989,13 @@ void charger_ressources_niveau(EtatJeu *etat) {
         etat->champis[i].y = n->positions_champi[i][1];
         etat->position_champi[i][0] = n->positions_champi[i][0];
         etat->position_champi[i][1] = n->positions_champi[i][1];
+    }
+
+    for (int i = 0; i < NB_LIANE; i++) {
+        etat->lianes[i].x = n->positions_liane[i][0];
+        etat->lianes[i].y = n->positions_liane[i][1];
+        etat->position_liane[i][0] = n->positions_liane[i][0];
+        etat->position_liane[i][1] = n->positions_liane[i][1];
     }
 
     // Charger les sprites des roues
