@@ -377,7 +377,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .img_petit_path = "petit.bmp",
         .explosion_path = "explosion_lave.bmp",
         .champi_path = "champignon.bmp",
-        .positions_champi = {{0, 0}, {0, 0}, {0, 0}, {0, 0}}, // Positions par défaut
+        .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .trainee_path = "saut.bmp",
         .img_vite_path = "vite.bmp",
         .musique_path = "lave.wav",
@@ -408,7 +408,10 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .checkpoint_path = "checkpoint2.bmp",
         .roues_paths = {"roue0.bmp", "roue1.bmp", "roue2.bmp", "roue3.bmp"},
         .positions_cp = {{600, 250}, {2400, 270}, {4000, 260}, {5300, 280}},
-        .roues_positions = {{0, 0, 0}}
+        .roues_positions = {{20000, 170,0},
+        {20000, 390,0},
+        {20000, 130,0},
+        {20000, 420,0},{20000, 420,0}}
     };
 
 
@@ -756,7 +759,7 @@ void charger_ressources_niveau(TypeNiveau niveau, BITMAP **fond, BITMAP **collis
 
 void menu_principal(SAMPLE* lave, SAMPLE* menu) {
     stop_sample(lave);
-    play_sample(menu, 200, 128, 950, 1);// volume max, centre, fréquence, répéter (1 = oui)
+    play_sample(menu, 5, 128, 950, 1);// volume max, centre, fréquence, répéter (1 = oui)
     BITMAP *buffer = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
     BITMAP *fondmenu = load_bitmap("fondmenu.bmp", NULL);
     BITMAP *marbre = load_bitmap("marbre.bmp", NULL);
@@ -921,7 +924,7 @@ void menu_principal(SAMPLE* lave, SAMPLE* menu) {
                 if (mouse_x >= start_x && mouse_x <= start_x + cadre_w &&
        mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
                     stop_sample(menu);
-                    play_sample(lave, 200, 100, 920, 1);
+                    play_sample(lave, 5, 100, 920, 1);
                     jeu_scrolling(pseudo, NIVEAU_VOLCAN, lave, menu);
                     stop_sample(lave);
 
@@ -929,7 +932,7 @@ void menu_principal(SAMPLE* lave, SAMPLE* menu) {
                 else if (mouse_x >= mx && mouse_x <= mx + cadre_w &&
                                mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
                     stop_sample(menu);
-                    play_sample(lave, 200, 100, 920, 1);
+                    play_sample(lave, 5, 100, 920, 1);
                         jeu_scrolling(pseudo, NIVEAU_MONTAGNE, lave, menu);
                     stop_sample(lave);
 
