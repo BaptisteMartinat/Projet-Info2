@@ -1,3 +1,4 @@
+//Badland.c roue nulle
 #include "Badland.h"
 #include <stdio.h>
 #include <string.h>
