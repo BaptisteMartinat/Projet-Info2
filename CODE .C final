@@ -76,13 +76,19 @@ void maj_roues(Roue roues[], int *timer) {
     }
 }
 
+void afficher_mort(BITMAP *page, BITMAP *img_explosion, Joueur *joueur) {
+    int x = joueur->x + joueur->largeur / 2 - img_explosion->w / 2;
+    int y = joueur->y + joueur->hauteur / 2 - img_explosion->h / 2;
+    draw_sprite(page, img_explosion, x, y);
+}
+
+
 // 4. Collision roue avec checkpoint
 void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_scroll,
                             Checkpoint checkpoints[], int dernier_cp, int *joueur_est_mort_ptr,
-                            SAMPLE *menu, SAMPLE *lave) {
-    const int rayon_collision = 90;  // Rayon "réaliste" de la roue
+                            SAMPLE *menu, SAMPLE *lave, BITMAP *img_explosion, BITMAP* page) {
+    const int rayon_collision = 90;
 
-    // Centre du joueur (repère global)
     int jx = joueur->x + *decor_scroll + joueur->largeur / 2;
     int jy = joueur->y + joueur->hauteur / 2;
 
@@ -95,11 +101,7 @@ void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_sc
         int distance2 = dx * dx + dy * dy;
 
         if (distance2 < rayon_collision * rayon_collision) {
-            if (dernier_cp != -1) {
-                *joueur_est_mort_ptr = 1;
-            } else {
-                menu_principal(lave, menu);
-            }
+            *joueur_est_mort_ptr = 1; // Juste signaler la mort
             return;
         }
     }
@@ -126,29 +128,22 @@ int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sw
 }
 
 void gestion_collision_champis(Joueur *joueur, champi champis[], int nb, int *decor_scroll,
-                             Checkpoint checkpoints[], int dernier_cp, int *joueur_est_mort_ptr, SAMPLE* lave, SAMPLE* menu) {
-    // Nouveau : collision par rectangle plutôt que par cercle
+                             Checkpoint checkpoints[], int dernier_cp, int *joueur_est_mort_ptr,
+                             SAMPLE* lave, SAMPLE* menu, BITMAP *img_explosion, BITMAP* page) {
     int joueur_x = joueur->x + *decor_scroll;
     int joueur_y = joueur->y;
 
     for (int i = 0; i < nb; i++) {
-        // On considère que les champignons ont une taille de 50x50 (à ajuster)
         int champi_x = champis[i].x;
         int champi_y = champis[i].y;
         int champi_w = 50;
         int champi_h = 50;
 
         if (collision(joueur_x, joueur_y, joueur->largeur, joueur->hauteur,
-                     champi_x, champi_y, champi_w, champi_h)) {
-            if (dernier_cp != -1) {
-                *joueur_est_mort_ptr = 1;
-            } else {
-                menu_principal(lave, menu);
-                stop_sample(lave);
-
-            }
+              champi_x, champi_y, champi_w, champi_h)) {
+            *joueur_est_mort_ptr = 1; // Juste signaler la mort
             return;
-                     }
+              }
     }
 }
 
@@ -187,6 +182,8 @@ void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne, int *temps
     }
 
 }
+
+
 
 void appliquer_physique(Joueur *joueur) {
     joueur->dy += GRAVITY;
@@ -423,7 +420,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .sprite2_path = "perso_mer2.bmp",
         .img_vite_path = "vite.bmp",
         .champi_path = "champignon.bmp",
-        .positions_champi = {{0, 0}, {0, 0}, {0, 0}, {0, 0}}, // Positions par défaut
+        .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .musique_path = "mer.wav",
         .explosion_path = "explosion_foret.bmp",
         .trainee_path = "saut2.bmp",
@@ -432,15 +429,14 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .checkpoint_path = "checkpoint_mer.bmp",
         .roues_paths = {"roue_mer0.bmp", "roue_mer1.bmp", "roue_mer2.bmp", "roue_mer3.bmp"},
         .positions_cp = {{550, 320}, {2350, 340}, {3750, 330}, {5250, 350}},
-        .roues_positions = {{0, 0, 0}}
+        .roues_positions = {{20000, 170,0},
+        {20000, 390,0},
+        {20000, 130,0},
+        {20000, 420,0},{20000, 420,0}}
     };
 }
 
-void afficher_mort(BITMAP *page, BITMAP *img_explosion, Joueur *joueur) {
-    int x = joueur->x + joueur->largeur / 2 - img_explosion->w / 2;
-    int y = joueur->y + joueur->hauteur / 2 - img_explosion->h / 2;
-    draw_sprite(page, img_explosion, x, y);
-}
+
 void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE* lave, SAMPLE* menu) {
     // ... variables existantes ...
     SAMPLE *musique_niveau;
@@ -511,15 +507,17 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE* lave, SAMPLE* 
 
     // Boucle principale du jeu
     while (!key[KEY_ESC]) {
-        stop_sample(musique_niveau);
         int temps_actuel = (clock() - temps_depart) / CLOCKS_PER_SEC;
+
+        // Phase explosion
         if (joueur_est_mort == 1) {
             if (!explosion_affichee) {
                 afficher_scene(page, fond, sprite1, sprite2,
                                roues, roues_struct, NB_ROUES, &joueur, sprite_state,
                                facteur_perso, decor_scroll, temps_actuel,
                                afficher_gros, gros_collision, img_gros, gros_x, gros_y,
-                               afficher_petit, petit_collision, img_petit, petit_x, petit_y, afficher_vite, vite_collision, img_vite, vite_x, vite_y,
+                               afficher_petit, petit_collision, img_petit, petit_x, petit_y,
+                               afficher_vite, vite_collision, img_vite, vite_x, vite_y,
                                img_checkpoint, checkpoints, positions_cp,
                                img_trainee, temps_trainee, img_champi, position_champi);
 
@@ -530,7 +528,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE* lave, SAMPLE* 
                 temps_mort = clock();
             }
 
-            if ((clock() - temps_mort) >= 1000) {
+            if ((clock() - temps_mort) >= 1000) {  // Explosion visible 1 seconde
                 joueur_est_mort = 2;
                 explosion_affichee = 0;
             } else {
@@ -539,17 +537,31 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE* lave, SAMPLE* 
             }
         }
 
-        // PHASE 2 : Message et repositionnement
+        // Phase repositionnement ou retour menu
         if (joueur_est_mort == 2) {
-
             if (dernier_cp != -1) {
+                // Repositionnement au checkpoint
                 joueur.x = checkpoints[dernier_cp].x;
                 joueur.y = checkpoints[dernier_cp].y;
                 decor_scroll = checkpoints[dernier_cp].scroll;
                 joueur.dx = joueur.dy = 0;
                 joueur_est_mort = 0;
             } else {
-                stop_sample(musique_niveau);  // Arrêt supplémentaire pour être sûr
+                // Pas de checkpoint : afficher explosion encore 1s puis retour menu
+                afficher_scene(page, fond, sprite1, sprite2,
+                               roues, roues_struct, NB_ROUES, &joueur, sprite_state,
+                               facteur_perso, decor_scroll, temps_actuel,
+                               afficher_gros, gros_collision, img_gros, gros_x, gros_y,
+                               afficher_petit, petit_collision, img_petit, petit_x, petit_y,
+                               afficher_vite, vite_collision, img_vite, vite_x, vite_y,
+                               img_checkpoint, checkpoints, positions_cp,
+                               img_trainee, temps_trainee, img_champi, position_champi);
+
+                afficher_mort(page, img_explosion, &joueur);
+                blit(page, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+                rest(1000); // Pause pour voir l'explosion
+
                 stop_sample(lave);
                 menu_principal(lave, menu);
                 return;
@@ -562,7 +574,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE* lave, SAMPLE* 
 
         // Gestion des collisions avec les roues
         gestion_collision_roues(&joueur, roues_struct, NB_ROUES, &decor_scroll,
-                       checkpoints, dernier_cp, &joueur_est_mort, menu, lave);
+                       checkpoints, dernier_cp, &joueur_est_mort, menu, lave, img_explosion, page);
 
         // Mise à jour des checkpoints
         maj_checkpoints(&joueur, checkpoints, positions_cp, &dernier_cp, decor_scroll, sprite1, img_checkpoint);
@@ -575,7 +587,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE* lave, SAMPLE* 
 
         if (niveau == NIVEAU_MONTAGNE) {
             gestion_collision_champis(&joueur, champis, NB_CHAMPI, &decor_scroll,
-                                   checkpoints, dernier_cp, &joueur_est_mort, lave, menu);
+                                   checkpoints, dernier_cp, &joueur_est_mort, lave, menu, img_explosion, page);
         }
 
 
@@ -676,7 +688,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE* lave, SAMPLE* 
     }
 
     // Nettoyage des ressources
-    nettoyer_ressources(fond, collision_map, sprite1, sprite2, img_gros, img_petit, roues, page, img_petit);
+    nettoyer_ressources(fond, collision_map, sprite1, sprite2, img_gros, img_petit, roues, page, img_champi);
     if (musique_niveau) stop_sample(musique_niveau);  // Arrêter avant de détruire
     destroy_sample(musique_niveau);
     if (img_vite) destroy_bitmap(img_vite);
@@ -759,7 +771,7 @@ void charger_ressources_niveau(TypeNiveau niveau, BITMAP **fond, BITMAP **collis
 
 void menu_principal(SAMPLE* lave, SAMPLE* menu) {
     stop_sample(lave);
-    play_sample(menu, 5, 128, 950, 1);// volume max, centre, fréquence, répéter (1 = oui)
+    play_sample(menu, 200, 128, 950, 1);// volume max, centre, fréquence, répéter (1 = oui)
     BITMAP *buffer = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
     BITMAP *fondmenu = load_bitmap("fondmenu.bmp", NULL);
     BITMAP *marbre = load_bitmap("marbre.bmp", NULL);
@@ -924,7 +936,7 @@ void menu_principal(SAMPLE* lave, SAMPLE* menu) {
                 if (mouse_x >= start_x && mouse_x <= start_x + cadre_w &&
        mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
                     stop_sample(menu);
-                    play_sample(lave, 5, 100, 920, 1);
+                    play_sample(lave, 200, 100, 920, 1);
                     jeu_scrolling(pseudo, NIVEAU_VOLCAN, lave, menu);
                     stop_sample(lave);
 
@@ -932,7 +944,7 @@ void menu_principal(SAMPLE* lave, SAMPLE* menu) {
                 else if (mouse_x >= mx && mouse_x <= mx + cadre_w &&
                                mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
                     stop_sample(menu);
-                    play_sample(lave, 5, 100, 920, 1);
+                    play_sample(lave, 200, 100, 920, 1);
                         jeu_scrolling(pseudo, NIVEAU_MONTAGNE, lave, menu);
                     stop_sample(lave);
 
