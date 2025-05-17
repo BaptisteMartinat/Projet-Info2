@@ -18,7 +18,8 @@
 #define SAVE_FILE "save.txt"
 #define NB_CHECKPOINTS 4
 #define NB_ROUES 5  // Modifier la valeur existante
-#define SAVE_FILE "save.txt"
+
+
 #define COLLISION_RADIUS 18
 SAMPLE* charger_musique(const char* path);
 
@@ -39,6 +40,7 @@ typedef struct {
     char nom[MAX_NAME_LENGTH];
     int niveau; // TypeNiveau
     int bonus_vite_actif;  // Nouveau: état du bonus vitesse
+    int sprite_state; // 0=normal, 1=saut
 } Joueur;
 
 
@@ -54,6 +56,20 @@ typedef struct {
     int x, y, scroll;
     int actif;
 } Checkpoint;
+
+
+
+typedef struct {
+    int x, y, scroll;
+
+} champi;
+
+typedef struct {
+    int x, y, scroll;
+
+} liane;
+
+
 
 typedef struct {
     char* fond_path;
@@ -76,72 +92,101 @@ typedef struct {
     Roue roues_positions[NB_ROUES];
 } NiveauRessources;
 
-typedef struct {
-    int x, y, scroll;
-} champi;
 
 typedef struct {
-    int x, y, scroll;
-} liane;
+    Joueur joueur;
+    TypeNiveau niveau_actuel;
+    int decor_scroll;
+    int temps_jeu;
+    int dernier_cp;
+    int joueur_est_mort;
+    int positions_cp[NB_CHECKPOINTS][2];
+    int position_champi[NB_CHAMPI][2];
+    int position_liane[NB_LIANE][2];
+    int timer_saut;
+    int temps_trainee;
+    int temps_depart;
+
+
+    // Ressources graphiques
+    BITMAP *fond;
+    BITMAP *page;
+    BITMAP *collision_map;
+    BITMAP *sprite_joueur[2]; // 0=normal, 1=saut
+    BITMAP *img_bonus[3]; // 0=gros, 1=petit, 2=vite
+    BITMAP *img_explosion;
+    BITMAP *img_trainee;
+    BITMAP *img_checkpoint;
+    BITMAP *img_champi;
+    BITMAP *img_liane;
+    BITMAP *roues[4];
+
+    // Éléments du jeu
+    int timer_roues;
+    Roue roues_struct[NB_ROUES];
+
+    Checkpoint checkpoints[NB_CHECKPOINTS];
+    champi champis[NB_CHAMPI];
+    liane lianes[NB_LIANE];
+    // Sons
+    SAMPLE *musique_niveau;
+    SAMPLE *son_saut;
+    SAMPLE *son_explosion;
+    SAMPLE *musique_menu;
+    SAMPLE *musique_jeu;
+    SAMPLE *son_checkpoint;
+
+
+    // État des bonus
+    float facteur_perso; // Facteur de taille (0.8 pour petit, 1.5 pour gros)
+    int bonus_actifs[3]; // 0=gros, 1=petit, 2=vite
+    int temps_bonus[3];
+
+    int bonus_pos[3][2];  // [0]=gros, [1]=petit, [2]=vite
+    int bonus_collision[3]; // 0=non collecté, 1=collecté
+    int temps_bonus_vite;
+    int vitesse_scroll;
+
+
+} EtatJeu;
+
 
 // Ajouter le prototype de fonction
-void gestion_collision_champis(Joueur *joueur, champi champis[], int nb, int *decor_scroll,
-                             Checkpoint checkpoints[], int dernier_cp, int *joueur_est_mort_ptr, SAMPLE* lave, SAMPLE* menu, BITMAP* img_explosion, BITMAP* page);
-
-void gestion_collision_lianes(Joueur *joueur, liane lianes[], int nb, int *decor_scroll,
-                             Checkpoint checkpoints[], int dernier_cp, int *joueur_est_mort_ptr, SAMPLE* lave, SAMPLE* menu, BITMAP* img_explosion, BITMAP* page);
+void gestion_collision_champis(EtatJeu *etat);
+void gestion_collision_lianes(EtatJeu *etat);
 
 // --- Fonctions principales ---
 // --- Fonctions principales ---
 void initialisation_allegro();
-void init_jeu(Joueur *joueur, TypeNiveau niveau);
+void init_jeu(EtatJeu *etat, TypeNiveau niveau, const char *pseudo);
 void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *menu);
 void menu_principal(SAMPLE *lave, SAMPLE *menu);
-void charger_ressources_niveau(TypeNiveau niveau, BITMAP **fond, BITMAP **collision_map,
-                              BITMAP **sprite1, BITMAP **sprite2, BITMAP **img_gros,
-                              BITMAP *roues[], BITMAP **img_petit, BITMAP **img_explosion,
-                              BITMAP **img_trainee, BITMAP **img_checkpoint,
-                              Roue roues_struct[], Checkpoint checkpoints[],
-                              int positions_cp[][2], BITMAP **img_vite, SAMPLE **musique,
-                              BITMAP **img_liane, int position_liane[][2], liane lianes[],
-                              BITMAP **img_champi, int position_champi[][2], champi champis[]);
+void charger_ressources_niveau(EtatJeu *etat);
 
-void nettoyer_ressources(BITMAP *fond, BITMAP *collision_map, BITMAP *sprite1,
-                         BITMAP *sprite2, BITMAP *img_gros, BITMAP *img_petit,
-                         BITMAP *roues[], BITMAP *page, BITMAP *img_champi, BITMAP *img_liane);
+void nettoyer_ressources(EtatJeu *etat);
 // --- Affichage ---
-void afficher_scene(BITMAP *page, BITMAP *fond, BITMAP *sprite1, BITMAP *sprite2,
-                    BITMAP *roues[], Roue roues_struct[], int nb_roues, Joueur *joueur, int sprite_state,
-                    float facteur_perso, int decor_scroll, int temps_actuel,
-                    int afficher_gros, int gros_collision, BITMAP *img_gros,
-                    int gros_x, int gros_y, int afficher_petit, int petit_collision, BITMAP *img_petit,
-                    int petit_x, int petit_y, int afficher_vite, int vite_collision, BITMAP *img_vite,
-                    int vite_x, int vite_y, BITMAP *img_checkpoint, Checkpoint checkpoints[],
-                    const int positions_cp[][2], BITMAP *img_trainee, int temps_trainee,
-                    BITMAP *img_liane, const int position_liane[][2],
-                    BITMAP *img_champi, const int position_champi[][2]);
+void afficher_scene(EtatJeu *etat);
 
 // --- Gestion du joueur / actions ---
-void gerer_saut(Joueur *joueur, int *sprite_state, int *timerinterne, int *temps_trainee);
-void appliquer_physique(Joueur *joueur);
-void gerer_collisions(Joueur *joueur, BITMAP *collision_map, int decor_scroll);
-
+void gerer_saut(EtatJeu *etat);
+void appliquer_physique(EtatJeu *etat);
+void gerer_collisions(EtatJeu *etat);
 // --- Roues (affichage, animation, collisions) ---
 void gerer_roues(int *etape_roue, int *dernier_changement_roue, int temps_actuel); // version simple
-void maj_roues(Roue roues[], int *timer); // version avancée (animation par frames)
-void gestion_collision_roues(Joueur *joueur, Roue roues[], int nb, int *decor_scroll,
-                            Checkpoint checkpoints[], int dernier_cp, int *joueur_est_mort_ptr,
-                            SAMPLE *menu, SAMPLE *lave, BITMAP* img_explosion, BITMAP* page);
+void maj_roues(EtatJeu *etat);
+void gestion_collision_roues(EtatJeu *etat);
+
 int verifier_collision_roue(Joueur *joueur, BITMAP *roue, int roue_x, int roue_y, int decor_scroll);
 
 // --- Checkpoints ---
-void maj_checkpoints(Joueur *joueur, Checkpoint checkpoints[], const int positions[][2], int *dernier_cp, int decor_scroll, BITMAP *sprite, BITMAP *img_checkpoint);
+void maj_checkpoints(EtatJeu *etat);
 int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sw, int sh);
 
 // --- Arrivée / victoire ---
-int detecter_arrivee(BITMAP *map, int cx, int cy, int rayon, int scroll);
+int detecter_arrivee(EtatJeu *etat);
 
 // --- Utilitaire ---
+
 int collision(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2);
 void initialisation_audio();
 SAMPLE* charger_musique(const char* path);
