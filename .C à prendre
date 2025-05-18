@@ -128,7 +128,7 @@ void gestion_collision_roues(EtatJeu *etat) {
             } else {
                 // Retour au menu si aucun checkpoint
                 arreter_musique();
-                menu_principal(etat->musique_menu, etat->musique_jeu, etat->musique_niveau);
+                menu_principal(etat->musique_menu, etat->musique_jeu, etat->musique_niveau, etat->musique_niveau);
             }
             return;
         }
@@ -182,7 +182,7 @@ void gestion_collision_champis(EtatJeu *etat) {
                 if (etat->musique_niveau) {
                     stop_sample(etat->musique_niveau);
                 }
-                menu_principal(etat->musique_menu, etat->musique_jeu, etat->musique_niveau);
+                menu_principal(etat->musique_menu, etat->musique_jeu, etat->musique_niveau, etat->musique_niveau);
             }
             return;
                      }
@@ -213,7 +213,7 @@ void gestion_collision_lianes(EtatJeu *etat) {
                 if (etat->musique_niveau) {
                     stop_sample(etat->musique_niveau);
                 }
-                menu_principal(etat->musique_menu, etat->musique_jeu, etat->musique_niveau);
+                menu_principal(etat->musique_menu, etat->musique_jeu, etat->musique_niveau, etat->musique_niveau);
             }
             return;
                      }
@@ -678,7 +678,7 @@ void afficher_mort(BITMAP *page, BITMAP *img_explosion, Joueur *joueur) {
     draw_sprite(page, img_explosion, x, y);
 
 }
-void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *menu, SAMPLE* montagne) {
+void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *menu, SAMPLE* montagne, SAMPLE* mer) {
 
     // Initialisation de l'état du jeu
     EtatJeu etat;
@@ -851,7 +851,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
             } else {
                 stop_sample(musique_niveau);  // Arrêt supplémentaire pour être sûr
                 stop_sample(lave);
-                menu_principal(lave, menu, montagne);
+                menu_principal(lave, menu, montagne, mer);
                 return;
             }
             continue;
@@ -894,7 +894,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
                 etat.joueur.dx = etat.joueur.dy = 0;
             } else {
                 stop_sample(lave);
-                menu_principal(lave, menu, montagne);
+                menu_principal(lave, menu, montagne, mer);
                 break;
             }
         }
@@ -985,7 +985,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         nettoyer_ressources(&etat);
 
         // Retour au menu principal au lieu de fermer
-        menu_principal(lave, menu, montagne);
+        menu_principal(lave, menu, montagne, mer);
         return;
     } else {
         // Nettoyage normal à la fin du niveau
@@ -1091,8 +1091,9 @@ void charger_ressources_niveau(EtatJeu *etat) {
 }
 
 
-void menu_principal(SAMPLE* lave, SAMPLE* menu, SAMPLE* montagne) {
+void menu_principal(SAMPLE* lave, SAMPLE* menu, SAMPLE* montagne, SAMPLE* mer) {
     stop_sample(lave);
+    stop_sample(mer);
     stop_sample(montagne);
     play_sample(menu, 200, 128, 950, 1);// volume max, centre, fréquence, répéter (1 = oui)
     BITMAP *buffer = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
@@ -1260,7 +1261,7 @@ void menu_principal(SAMPLE* lave, SAMPLE* menu, SAMPLE* montagne) {
        mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
                     stop_sample(menu);
                     play_sample(lave, 200, 100, 920, 1);
-                    jeu_scrolling(pseudo, NIVEAU_VOLCAN, lave, menu, montagne);
+                    jeu_scrolling(pseudo, NIVEAU_VOLCAN, lave, menu, montagne, mer);
                     stop_sample(lave);
 
        }
@@ -1268,13 +1269,17 @@ void menu_principal(SAMPLE* lave, SAMPLE* menu, SAMPLE* montagne) {
                                mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
                     stop_sample(menu);
                     play_sample(montagne, 200, 100, 920, 1);
-                        jeu_scrolling(pseudo, NIVEAU_MONTAGNE, lave, menu, montagne);
+                        jeu_scrolling(pseudo, NIVEAU_MONTAGNE, lave, menu, montagne, mer);
                     stop_sample(montagne);
 
                                }
                 else if (mouse_x >= merx && mouse_x <= merx + cadre_w &&
                                           mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
-                                   jeu_scrolling(pseudo, NIVEAU_MER, lave, menu, montagne);
+                    stop_sample(menu);
+                    play_sample(mer, 200, 100, 920, 1);
+                                   jeu_scrolling(pseudo, NIVEAU_MER, lave, menu, montagne, mer);
+                    stop_sample(mer);
+
                                           }
                 // Retour
                 if (mouse_x >= retour_x && mouse_x <= retour_x + btn_ctrl_w &&
