@@ -762,8 +762,6 @@ void afficher_mort(BITMAP *page, BITMAP *img_explosion, Joueur *joueur) {
     draw_sprite(page, img_explosion, x, y);
 
 }
-
-
 void gestion_collision_crabe(EtatJeu *etat) {
     // Position globale du joueur (avec le défilement)
     int joueur_x = etat->joueur.x + etat->decor_scroll;
@@ -773,13 +771,13 @@ void gestion_collision_crabe(EtatJeu *etat) {
         // Ignorer les crabes désactivés (position x = 20000)
         if (etat->crabes[i].x == 20000) continue;
 
-        // Dimensions de la hitbox du crabe (ajustez selon votre sprite)
+        // Dimensions de la hitbox du crabe (ajustées légèrement)
         const int crabe_w = 60;   // Largeur de la hitbox
-        const int crabe_h = 40;   // Hauteur de la hitbox
+        const int crabe_h = 45;   // Hauteur de la hitbox (légèrement augmentée)
 
-        // Position du crabe avec décalage pour centrer la hitbox
+        // Position du crabe avec décalage pour centrer la hitbox plus bas
         int crabe_x = etat->crabes[i].x + 20;  // Décalage horizontal
-        int crabe_y = etat->crabes[i].y + 10;  // Décalage vertical
+        int crabe_y = etat->crabes[i].y + 15;  // Décalage vertical légèrement augmenté
 
         // Vérification de collision
         if (collision(joueur_x, joueur_y,
@@ -800,6 +798,7 @@ void gestion_collision_crabe(EtatJeu *etat) {
     }
 }
 
+
 void gestion_collision_poisson(EtatJeu *etat) {
     // Position globale du joueur (avec le défilement)
     int joueur_x = etat->joueur.x + etat->decor_scroll;
@@ -809,11 +808,11 @@ void gestion_collision_poisson(EtatJeu *etat) {
         // Ignorer les crabes désactivés (position x = 20000)
 
         const int poissons_w = 60;   // Largeur de la hitbox
-        const int poissons_h = 40;   // Hauteur de la hitbox
+        const int poissons_h = 50;   // Hauteur de la hitbox (augmentée)
 
-        // Position du crabe avec décalage pour centrer la hitbox
+        // Position du crabe avec décalage pour centrer la hitbox plus bas
         int poissons_x = etat->poissons[i].x + 20;  // Décalage horizontal
-        int poissons_y = etat->poissons[i].y + 10;  // Décalage vertical
+        int poissons_y = etat->poissons[i].y + 25;  // Décalage vertical augmenté
 
         // Vérification de collision
         if (collision(joueur_x, joueur_y,
