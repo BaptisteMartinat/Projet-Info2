@@ -193,6 +193,7 @@ void gestion_collision_champis(EtatJeu *etat) {
     }
 }
 void gestion_collision_lianes(EtatJeu *etat) {
+    if (etat->invincible_aux_lianes) return;
     // Position globale du joueur (avec le défilement)
     int joueur_x = etat->joueur.x + etat->decor_scroll;
     int joueur_y = etat->joueur.y;
@@ -409,10 +410,25 @@ void afficher_scene(EtatJeu *etat) {
 
     for (int i = 0; i < 3; i++) {
         if (etat->bonus_actifs[i] && !etat->bonus_collision[i]) {
-            draw_sprite(etat->page, etat->img_bonus[i],
+            draw_sprite(etat->page, etat->img_bonus[3],
                        etat->bonus_pos[i][0] - etat->decor_scroll,
                        etat->bonus_pos[i][1]);
         }
+    }
+
+
+    if (etat->bonus_actifs[3][0] && !etat->bonus_collision[3][0]) {
+        draw_sprite(etat->page, etat->img_bonus[3],
+                    etat->bonus_pos[3][0][0] - etat->decor_scroll,
+                    etat->bonus_pos[3][0][1]);
+    }
+
+    if (etat->invincible_aux_lianes) {
+        // Dessine un effet de bouclier autour du joueur
+        circle(etat->page,
+               etat->joueur.x + etat->joueur.largeur/2,
+               etat->joueur.y + etat->joueur.hauteur/2,
+               30, makecol(0, 255, 0));
     }
 
     // Affichage des roues
@@ -748,6 +764,9 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         etat.bonus_pos[1][1][0] = 2700; etat.bonus_pos[1][1][1] = 350;
         etat.bonus_pos[1][2][0] = 5300; etat.bonus_pos[1][2][1] = 320;
 
+        etat.bonus_pos[3][0][0] = 1500; etat.bonus_pos[3][0][1] = 200;
+        etat.bonus_pos[3][1][0] = 7000; etat.bonus_pos[3][1][1] = 300;
+
         // Vite bonus (3 instances)
         etat.bonus_pos[2][0][0] = 1000; etat.bonus_pos[2][0][1] = 350;
         etat.bonus_pos[2][1][0] = 4200; etat.bonus_pos[2][1][1] = 300;
@@ -938,6 +957,11 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
                             break;
                         }
 
+                        if (type == 3) {  // Bonus Invincible Lianes
+                            etat.invincible_aux_lianes = 1;
+                            etat.temps_invincible_lianes = 500;  // 10 secondes (à ajuster)
+                        }
+
                         if (type == 0 || type == 1) {
                             etat.joueur.largeur = 40 * etat.facteur_perso;
                             etat.joueur.hauteur = 40 * etat.facteur_perso;
@@ -946,6 +970,14 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
                 }
             }
         }
+
+        if (etat.invincible_aux_lianes) {
+            etat.temps_invincible_lianes--;
+            if (etat.temps_invincible_lianes <= 0) {
+                etat.invincible_aux_lianes = 0;
+            }
+        }
+
         // Fin effet bonus "vite" après 6 secondes
         if (afficher_vite && ((clock() - temps_bonus_vite) > 10000)) {
             vitesse_scroll = DECOR_SCROLL_SPEED;
@@ -1021,6 +1053,8 @@ void charger_ressources_niveau(EtatJeu *etat) {
 
     NiveauRessources *n = &niveaux[etat->niveau_actuel];
 
+
+
     // Charger les bitmaps
     etat->fond = load_bitmap(n->fond_path, NULL);
     if (!etat->fond) {
@@ -1089,6 +1123,9 @@ void charger_ressources_niveau(EtatJeu *etat) {
         etat->roues_struct[4].limite_haut = 150;
         etat->roues_struct[4].limite_bas = 450;
     }
+
+    etat->img_bonus[3] = load_bitmap("invincible_lianes.bmp", NULL);
+
 
     // Créer la page de rendu si elle n'existe pas
     if (!etat->page) {
