@@ -130,7 +130,7 @@ typedef struct {
     BITMAP *page;
     BITMAP *collision_map;
     BITMAP *sprite_joueur[2]; // 0=normal, 1=saut
-    BITMAP *img_bonus[3]; // 0=gros, 1=petit, 2=vite
+    BITMAP *img_bonus[4]; // 0=gros, 1=petit, 2=vite
     BITMAP *img_explosion;
     BITMAP *img_trainee;
     BITMAP *img_checkpoint;
