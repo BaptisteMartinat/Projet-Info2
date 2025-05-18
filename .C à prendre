@@ -762,6 +762,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
     init_jeu(&etat, niveau, pseudo);
     SAMPLE *musique_niveau;
     etat.temps_depart = clock();
+    etat.dernier_cp = -1;
 
     int afficher_vite = 0, vite_collision = 0;
     int vitesse_scroll = DECOR_SCROLL_SPEED;
