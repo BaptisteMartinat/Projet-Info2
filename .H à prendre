@@ -215,6 +215,9 @@ void afficher_scene(EtatJeu *etat);
 void gerer_saut(EtatJeu *etat);
 void appliquer_physique(EtatJeu *etat);
 void gerer_collisions(EtatJeu *etat);
+void gestion_collision_crabe(EtatJeu *etat);
+void gestion_collision_poisson(EtatJeu *etat);
+
 // --- Roues (affichage, animation, collisions) ---
 void gerer_roues(int *etape_roue, int *dernier_changement_roue, int temps_actuel); // version simple
 void maj_roues(EtatJeu *etat);
