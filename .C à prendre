@@ -410,7 +410,7 @@ void afficher_scene(EtatJeu *etat) {
 
     for (int i = 0; i < 3; i++) {
         if (etat->bonus_actifs[i] && !etat->bonus_collision[i]) {
-            draw_sprite(etat->page, etat->img_bonus[3],
+            draw_sprite(etat->page, etat->img_bonus[i],
                        etat->bonus_pos[i][0] - etat->decor_scroll,
                        etat->bonus_pos[i][1]);
         }
@@ -554,13 +554,6 @@ void nettoyer_ressources(EtatJeu *etat) {
         etat->sprite_joueur[1] = NULL;
     }
 
-    // Bonus
-    for (int i = 0; i < 3; i++) {
-        if (etat->img_bonus[i]) {
-            destroy_bitmap(etat->img_bonus[i]);
-            etat->img_bonus[i] = NULL;
-        }
-    }
 
     // Autres éléments
     if (etat->img_explosion) {
@@ -613,6 +606,12 @@ void nettoyer_ressources(EtatJeu *etat) {
         destroy_sample(etat->son_explosion);
         etat->son_explosion = NULL;
     }
+
+    for (int i = 0; i < 4; i++) {  // 0 à 3
+        if (etat->img_bonus[i]) {
+            destroy_bitmap(etat->img_bonus[i]);
+        }
+    }
 }
 
 
@@ -634,6 +633,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .positions_liane = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .trainee_path = "saut.bmp",
         .img_vite_path = "vite.bmp",
+        .img_invincible_path = "invincible_lianes.bmp",
         .musique_path = "lave.wav",
         .checkpoint_path = "checkpoint.bmp",
         .roues_paths = {"roue0.bmp", "roue1.bmp", "roue2.bmp", "roue3.bmp"},
@@ -652,10 +652,11 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .sprite1_path = "personnage1.bmp",
         .sprite2_path = "personnage2.bmp",
         .img_vite_path = "vite.bmp",
+        .img_invincible_path = "invincible_lianes.bmp",
         .champi_path = "champignon.bmp",
         .liane_path = "liane.bmp",
         .positions_champi = {{2058, 416}, {4524, 456}, {6400, 334}, {8420, 340}},
-        .positions_liane = {{680, 125}, {4015, 126}, {6650, 112}, {8120, 130}},
+        .positions_liane = {{680, 125}, {4015, 126}, {6650, 112}, {7120, 130}},
         .musique_path = "montagne.wav",
         .img_gros_path = "gros.bmp",
         .img_petit_path = "petit.bmp",
@@ -678,6 +679,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .sprite1_path = "personnage1.bmp",
         .sprite2_path = "personnage2.bmp",
         .img_vite_path = "vite.bmp",
+        .img_invincible_path = "invincible_lianes.bmp",
         .champi_path = "champignon.bmp",
         .liane_path = "liane.bmp",
         .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
@@ -764,13 +766,15 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         etat.bonus_pos[1][1][0] = 2700; etat.bonus_pos[1][1][1] = 350;
         etat.bonus_pos[1][2][0] = 5300; etat.bonus_pos[1][2][1] = 320;
 
-        etat.bonus_pos[3][0][0] = 1500; etat.bonus_pos[3][0][1] = 200;
-        etat.bonus_pos[3][1][0] = 7000; etat.bonus_pos[3][1][1] = 300;
+
 
         // Vite bonus (3 instances)
         etat.bonus_pos[2][0][0] = 1000; etat.bonus_pos[2][0][1] = 350;
         etat.bonus_pos[2][1][0] = 4200; etat.bonus_pos[2][1][1] = 300;
         etat.bonus_pos[2][2][0] = 7000; etat.bonus_pos[2][2][1] = 380;
+
+        etat.bonus_pos[3][0][0] = 1500; etat.bonus_pos[3][0][1] = 200;
+        etat.bonus_pos[3][1][0] = 7000; etat.bonus_pos[3][1][1] = 300;
             break;
 
         case NIVEAU_VOLCAN:
@@ -1068,6 +1072,8 @@ void charger_ressources_niveau(EtatJeu *etat) {
     etat->img_bonus[0] = load_bitmap(n->img_gros_path, NULL);    // bonus gros
     etat->img_bonus[1] = load_bitmap(n->img_petit_path, NULL);   // bonus petit
     etat->img_bonus[2] = load_bitmap(n->img_vite_path, NULL);    // bonus vite
+    etat->img_bonus[3] = load_bitmap(n ->img_invincible_path, NULL);
+
     etat->img_explosion = load_bitmap(n->explosion_path, NULL);
     etat->img_trainee = load_bitmap(n->trainee_path, NULL);
     etat->img_checkpoint = load_bitmap(n->checkpoint_path, NULL);
@@ -1124,7 +1130,6 @@ void charger_ressources_niveau(EtatJeu *etat) {
         etat->roues_struct[4].limite_bas = 450;
     }
 
-    etat->img_bonus[3] = load_bitmap("invincible_lianes.bmp", NULL);
 
 
     // Créer la page de rendu si elle n'existe pas
