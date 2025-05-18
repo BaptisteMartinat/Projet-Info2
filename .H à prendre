@@ -18,8 +18,8 @@
 #define SAVE_FILE "save.txt"
 #define NB_CHECKPOINTS 4
 #define NB_ROUES 5  // Modifier la valeur existante
-#define NB_BONUS 5
-#define NB_BONUS_PAR_TYPE 3
+#define NB_BONUS_TYPES 3  // Gros, Petit, Vite
+#define NB_BONUS_PAR_TYPE 3  // Nombre d'instances de chaque type
 
 
 #define COLLISION_RADIUS 18
@@ -155,11 +155,11 @@ typedef struct {
 
     // État des bonus
     float facteur_perso; // Facteur de taille (0.8 pour petit, 1.5 pour gros)
-    int bonus_actifs[3]; // 0=gros, 1=petit, 2=vite
     int temps_bonus[3];
 
-    int bonus_pos[3][2];  // [0]=gros, [1]=petit, [2]=vite
-    int bonus_collision[3]; // 0=non collecté, 1=collecté
+    int bonus_pos[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE][2];  // Positions [type][instance][x/y]
+    int bonus_actifs[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE];  // Activation
+    int bonus_collision[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE]; // Collision
     int temps_bonus_vite;
     int vitesse_scroll;
     Bonus bonus[MAX_BONUS];
