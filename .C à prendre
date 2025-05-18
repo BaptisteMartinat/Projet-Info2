@@ -730,16 +730,16 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         case NIVEAU_MONTAGNE:
             musique_niveau = load_sample("montagne.wav");
             etat.bonus_pos[0][0][0] = 300; etat.bonus_pos[0][0][1] = 300;
-        etat.bonus_pos[0][1][0] = 1500; etat.bonus_pos[0][1][1] = 250;
-        etat.bonus_pos[0][2][0] = 4500; etat.bonus_pos[0][2][1] = 350;
+        etat.bonus_pos[0][1][0] = 1700; etat.bonus_pos[0][1][1] = 250;
+        etat.bonus_pos[0][2][0] = 4500; etat.bonus_pos[0][2][1] = 250;
 
         // Petit bonus (3 instances)
-        etat.bonus_pos[1][0][0] = 700; etat.bonus_pos[1][0][1] = 300;
-        etat.bonus_pos[1][1][0] = 1700; etat.bonus_pos[1][1][1] = 300;
-        etat.bonus_pos[1][2][0] = 4700; etat.bonus_pos[1][2][1] = 320;
+        etat.bonus_pos[1][0][0] = 700; etat.bonus_pos[1][0][1] = 250;
+        etat.bonus_pos[1][1][0] = 1900; etat.bonus_pos[1][1][1] = 250;
+        etat.bonus_pos[1][2][0] = 4700; etat.bonus_pos[1][2][1] = 250;
 
         // Vite bonus (3 instances)
-        etat.bonus_pos[2][0][0] = 2000; etat.bonus_pos[2][0][1] = 350;
+        etat.bonus_pos[2][0][0] = 1000; etat.bonus_pos[2][0][1] = 350;
         etat.bonus_pos[2][1][0] = 3200; etat.bonus_pos[2][1][1] = 300;
         etat.bonus_pos[2][2][0] = 5000; etat.bonus_pos[2][2][1] = 280;
             break;
