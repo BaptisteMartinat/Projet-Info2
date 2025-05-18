@@ -694,6 +694,9 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
     champi champis[NB_CHAMPI];
     int position_liane[NB_LIANE][2];
     liane lianes[NB_LIANE];
+    etat.bonus_pos[NB_BONUS_PAR_TYPE][2];  // Position des bonus
+    etat.bonus_actifs[NB_BONUS_PAR_TYPE];  // Etat d'activation
+    etat.bonus_collision[NB_BONUS_PAR_TYPE]; // Etat de collision
 
     strcpy(etat.joueur.nom, pseudo);
     etat.joueur.niveau = niveau;
@@ -706,29 +709,54 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
     // --- Positionnement dynamique des bonus selon le niveau ---
     switch (niveau) {
         case NIVEAU_MER:
-            etat.bonus_pos[0][0] = 2500; etat.bonus_pos[0][1] = 300;  // Gros
-            etat.bonus_pos[1][0] = 300; etat.bonus_pos[1][1] = 200;  // Petit
-            etat.bonus_pos[2][0] = 2000; etat.bonus_pos[2][1] = 350;  // Vite
-            break;
+            // Gros bonus (3 instances)
+        etat.bonus_pos[0][1] = 3500; etat.bonus_pos[1][1] = 250;
+        etat.bonus_pos[2][0] = 4500; etat.bonus_pos[2][1] = 350;
+
+        // Petit bonus (3 instances)
+        etat.bonus_pos[1][0] = 300; etat.bonus_pos[1][1] = 200;
+        etat.bonus_pos[1][2] = 2800; etat.bonus_pos[2][1] = 220;
+
+        // Vite bonus (3 instances)
+        etat.bonus_pos[2][0] = 2000; etat.bonus_pos[2][1] = 350;
+        etat.bonus_pos[1][0] = 3200; etat.bonus_pos[1][1] = 300;
+        break;
+
 
         case NIVEAU_MONTAGNE:
-            etat.bonus_pos[0][0] = 1300; etat.bonus_pos[0][1] = 250;
-            etat.bonus_pos[1][0] = 1700; etat.bonus_pos[1][1] = 320;
-            etat.bonus_pos[2][0] = 1200; etat.bonus_pos[2][1] = 280;
+            etat.bonus_pos[0][1] = 3500; etat.bonus_pos[1][1] = 250;
+        etat.bonus_pos[2][0] = 4500; etat.bonus_pos[2][1] = 350;
+
+        // Petit bonus (3 instances)
+        etat.bonus_pos[1][0] = 300; etat.bonus_pos[1][1] = 200;
+        etat.bonus_pos[1][2] = 2800; etat.bonus_pos[2][1] = 220;
+
+        // Vite bonus (3 instances)
+        etat.bonus_pos[2][0] = 2000; etat.bonus_pos[2][1] = 350;
+        etat.bonus_pos[1][0] = 3200; etat.bonus_pos[1][1] = 300;
             break;
 
         default:
             // Positions par défaut
-            etat.bonus_pos[0][0] = 1500; etat.bonus_pos[0][1] = 300;
-            etat.bonus_pos[1][0] = 2000; etat.bonus_pos[1][1] = 350;
-            etat.bonus_pos[2][0] = 1000; etat.bonus_pos[2][1] = 350;
+                etat.bonus_pos[0][1] = 3500; etat.bonus_pos[1][1] = 250;
+        etat.bonus_pos[2][0] = 4500; etat.bonus_pos[2][1] = 350;
+
+        // Petit bonus (3 instances)
+        etat.bonus_pos[1][0] = 300; etat.bonus_pos[1][1] = 200;
+        etat.bonus_pos[1][2] = 2800; etat.bonus_pos[2][1] = 220;
+
+        // Vite bonus (3 instances)
+        etat.bonus_pos[2][0] = 2000; etat.bonus_pos[2][1] = 350;
+        etat.bonus_pos[1][0] = 3200; etat.bonus_pos[1][1] = 300;
             break;
     }
 
-    // Activer tous les bonus par défaut
-    etat.bonus_actifs[0] = 1; // Gros actif
-    etat.bonus_actifs[1] = 1; // Petit actif
-    etat.bonus_actifs[2] = 1; // Vite actif
+    for (int i = 0; i < NB_BONUS; i++) {
+        for (int j = 0; j < NB_BONUS_PAR_TYPE; j++) {
+            etat.bonus_actifs[i] = 1;
+            etat.bonus_collision[i] = 0;
+        }
+    }
 
     etat.facteur_perso = 1.0f; // Taille normale
     etat.vitesse_scroll = DECOR_SCROLL_SPEED; // Vitesse de base
@@ -866,44 +894,39 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         if (temps_actuel >= 1) afficher_petit = 1;
         if (temps_actuel >= 1) afficher_vite = 1;
 
-        // Gestion des collisions avec les objets spéciaux
-        if (etat.bonus_actifs[0] && !etat.bonus_collision[0]) { // Gros
-            int x_ecran = etat.bonus_pos[0][0] - etat.decor_scroll;
-            if (collision(etat.joueur.x, etat.joueur.y,
-                         etat.joueur.largeur, etat.joueur.hauteur,
-                         x_ecran, etat.bonus_pos[0][1],
-                         etat.img_bonus[0]->w, etat.img_bonus[0]->h)) {
-                etat.bonus_collision[0] = 1;
-                etat.facteur_perso = 1.5f;
-                etat.joueur.largeur = 40 * etat.facteur_perso;
-                etat.joueur.hauteur = 40 * etat.facteur_perso;
+        // Remplacer les conditions de collision par :
+        for (int i = 0; i < NB_BONUS; i++) {
+            for (int j = 0; j < NB_BONUS_PAR_TYPE; j++) {
+                if (etat.bonus_actifs[i] && !etat.bonus_collision[i]) {
+                    int x_ecran = etat.bonus_pos[i][j] - etat.decor_scroll;
+                    if (collision(etat.joueur.x, etat.joueur.y,
+                                 etat.joueur.largeur, etat.joueur.hauteur,
+                                 x_ecran, etat.bonus_pos[i][j],
+                                 etat.img_bonus[i]->w, etat.img_bonus[i]->h)) {
+                        etat.bonus_collision[i] = 1;
+
+                        // Appliquer l'effet du bonus
+                        switch (i) {
+                            case 0: // Gros
+                                etat.facteur_perso = 1.5f;
+                            break;
+                            case 1: // Petit
+                                etat.facteur_perso = 0.6f;
+                            break;
+                            case 2: // Vite
+                                vitesse_scroll = DECOR_SCROLL_SPEED * 3;
+                            temps_bonus_vite = clock();
+                            break;
+                        }
+
+                        // Mettre à jour la taille du joueur si nécessaire
+                        if (i == 0 || i == 1) {
+                            etat.joueur.largeur = 40 * etat.facteur_perso;
+                            etat.joueur.hauteur = 40 * etat.facteur_perso;
+                        }
+                                 }
+                }
             }
-        }
-
-        if (etat.bonus_actifs[1] && !etat.bonus_collision[1]) { // Petit
-            int x_ecran = etat.bonus_pos[1][0] - etat.decor_scroll;
-            if (collision(etat.joueur.x, etat.joueur.y,
-                          etat.joueur.largeur, etat.joueur.hauteur,
-                          x_ecran, etat.bonus_pos[1][1],
-                          etat.img_bonus[1]->w, etat.img_bonus[1]->h)) {
-                etat.bonus_collision[1] = 1;
-                etat.facteur_perso = 0.6f;
-                etat.joueur.largeur = 40 * etat.facteur_perso;
-                etat.joueur.hauteur = 40 * etat.facteur_perso;
-                          }
-        }
-
-        if (etat.bonus_actifs[2] && !etat.bonus_collision[2]) { // Vite
-            int x_ecran = etat.bonus_pos[2][0] - etat.decor_scroll;
-            if (collision(etat.joueur.x, etat.joueur.y,
-                          etat.joueur.largeur, etat.joueur.hauteur,
-                          x_ecran, etat.bonus_pos[2][1],
-                          etat.img_bonus[2]->w, etat.img_bonus[2]->h)) {
-                etat.bonus_collision[2] = 1;
-                vitesse_scroll = DECOR_SCROLL_SPEED * 3;
-                temps_bonus_vite = clock();
-                afficher_vite = 1;
-                          }
         }
 
         // Fin effet bonus "vite" après 6 secondes
@@ -919,15 +942,16 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         // Affichage de la scène complète (décor, joueur, bonus, etc.)
         afficher_scene(&etat);
 
-        // Affichage des bonus encore actifs et non ramassés
+        // Remplacer la boucle d'affichage des bonus par :
         for (int i = 0; i < NB_BONUS; i++) {
-            if (etat.bonus_actifs[i] && !etat.bonus_collision[i]) {
-                draw_sprite(etat.page, etat.img_bonus[i],
-                            etat.bonus_pos[i][0] - etat.decor_scroll,
-                            etat.bonus_pos[i][1]);
+            for (int j = 0; j < NB_BONUS_PAR_TYPE; j++) {
+                if (etat.bonus_actifs[i] && !etat.bonus_collision[i]) {
+                    draw_sprite(etat.page, etat.img_bonus[i],
+                                etat.bonus_pos[i][j] - etat.decor_scroll,
+                                etat.bonus_pos[i][j]);
+                }
             }
         }
-
 
         // Mise à jour finale de l’écran
         blit(etat.page, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
