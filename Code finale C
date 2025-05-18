@@ -947,8 +947,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, int niveau_max_debloqu
     etat.page = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
 
     // Chargement des ressources spécifiques au niveau
-    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit,*img_explosion, *img_trainee, *img_checkpoint, *img_vite, *img_champi, *img_liane;
-    BITMAP *roues[4];
+    BITMAP  *img_vite;
     // Initialisation des roues
     Roue roues_struct[NB_ROUES];
     Checkpoint checkpoints[NB_CHECKPOINTS];
@@ -960,19 +959,16 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, int niveau_max_debloqu
         roues_struct[i].frame = 0;
     }
 
-    // Initialisation des checkpoints
-    int timer_roues = 0;
-    int sprite_state = 0;
-    int timerinterne = 0;
-    float facteur_perso = 1.0;
+
+
 
     // Variables pour les objets spéciaux
     int afficher_gros = 0, afficher_petit = 0;
-    int gros_collision = 0, petit_collision = 0;
+
 
     int explosion_affichee = 0;
     int temps_mort = 0;
-    int temps_trainee = 0;
+
     stop_sample(musique_niveau);
 
     // Boucle principale du jeu
@@ -1499,7 +1495,7 @@ void menu_principal(SAMPLE* lave, SAMPLE* menu, SAMPLE* montagne, SAMPLE* mer) {
             }
 
         } else if (etape_menu == 2) {
-            // ========== CHOIX MAPS (inchangé) ==========
+            //  CHOIX MAPS
             textprintf_ex(buffer, font, 10, 40, makecol(255, 255, 255), -1, "Joueur: %s", pseudo);
             textout_centre_ex(buffer, font, "Choisis un environnement :", MY_SCREEN_W / 2, 80, makecol(255, 255, 255), -1);
 
@@ -1529,7 +1525,7 @@ void menu_principal(SAMPLE* lave, SAMPLE* menu, SAMPLE* montagne, SAMPLE* mer) {
                          merx + (cadre_w - img_w) / 2, img_y + (cadre_h - img_h) / 2, img_w, img_h);
             textout_centre_ex(buffer, font, "Rivages Perdus", merx + cadre_w / 2, img_y + cadre_h + 10, makecol(255, 255, 255), -1);
 
-            // ==== BOUTONS RETOUR ET QUITTER ====
+            //  BOUTONS RETOUR ET QUITTER
             int btn_ctrl_w = 100, btn_ctrl_h = 40;
             int retour_x = 20, retour_y = MY_SCREEN_H - 60;
             int quit_x = MY_SCREEN_W - 120, quit_y = MY_SCREEN_H - 60;
