@@ -3,32 +3,48 @@
 
 #include <allegro.h>
 #include <math.h>
+
 // --- Constantes globales ---
+// Dimensions de l'écran
 #define MY_SCREEN_W 800
 #define MY_SCREEN_H 600
-#define FIN_MER_X 9450  // Position X de l'image de fin
-#define FIN_MER_Y 150    // Position Y de l'image de fin
+
+// Coordonnées de l’image de fin pour le niveau "Mer"
+#define FIN_MER_X 9450
+#define FIN_MER_Y 150
+
+// Largeur totale de la scène et vitesse de défilement
 #define SCENE_WIDTH 13500
 #define DECOR_SCROLL_SPEED 3
 
+// Paramètres physiques
 #define GRAVITY 1
 #define JUMP_STRENGTH -11
+
+// Quantités d’éléments dans les niveaux
 #define NB_CHAMPI 4
 #define NB_LIANE 4
-#define MAX_NAME_LENGTH 30
-#define SAVE_FILE "save.txt"
 #define NB_CHECKPOINTS 4
-#define NB_ROUES 5  // Modifier la valeur existante
-#define NB_BONUS_TYPES 4  // Gros, Petit, Vite
-#define NB_BONUS_PAR_TYPE 3  // Nombre d'instances de chaque type
+#define NB_ROUES 5
+#define NB_BONUS_TYPES 4
+#define NB_BONUS_PAR_TYPE 3
 #define NB_POISSON 4
 #define NB_CRABE 7
 
+#define MAX_NAME_LENGTH 30
+#define SAVE_FILE "save.txt"
+
+// Rayon de collision utilisé pour les détections
 #define COLLISION_RADIUS 18
+
+// Charge une musique depuis un chemin donné
+// Paramètre : path = chemin du fichier son
+// Retour : pointeur vers la SAMPLE chargée
 SAMPLE* charger_musique(const char* path);
 
 // --- Structures ---
-// Types de niveaux
+
+// Types de niveaux disponibles dans le jeu
 typedef enum {
     NIVEAU_VOLCAN,
     NIVEAU_MONTAGNE,
@@ -36,55 +52,40 @@ typedef enum {
     NB_NIVEAUX
 } TypeNiveau;
 
-// --- Structures ---
+// Représente le joueur
 typedef struct {
-    int x, y;
-    int dx, dy;
-    int largeur, hauteur;
-    char nom[MAX_NAME_LENGTH];
-    int niveau; // TypeNiveau
-    int bonus_vite_actif;  // Nouveau: état du bonus vitesse
-    int sprite_state; // 0=normal, 1=saut
+    int x, y;                 // Position
+    int dx, dy;              // Vitesse
+    int largeur, hauteur;    // Taille
+    char nom[MAX_NAME_LENGTH]; // Nom du joueur
+    int niveau;              // Type de niveau
+    int bonus_vite_actif;    // Si le bonus vitesse est actif
+    int sprite_state;        // 0 = normal, 1 = saut
 } Joueur;
 
-
+// Représente une roue mobile dans le décor
 typedef struct {
     int x, y;
-    int frame;
-    int sens_vertical; // 1 = descend, -1 = monte
+    int frame;              // Pour l'animation
+    int sens_vertical;      // Direction de mouvement
     int limite_haut;
     int limite_bas;
 } Roue;
 
+// Représente un checkpoint
 typedef struct {
-    int x, y, scroll;
-    int actif;
+    int x, y;
+    int scroll;             // Position relative au décor
+    int actif;              // Activé ou non
 } Checkpoint;
 
+// Représentent les différents types d’éléments du décor
+typedef struct { int x, y, scroll; } champi;
+typedef struct { int x, y, scroll; } liane;
+typedef struct { int x, y, scroll; } poisson;
+typedef struct { int x, y, scroll; } crabe;
 
-
-typedef struct {
-    int x, y, scroll;
-
-} champi;
-
-typedef struct {
-    int x, y, scroll;
-
-} liane;
-
-typedef struct {
-    int x, y, scroll;
-
-} poisson;
-
-typedef struct {
-    int x, y, scroll;
-
-} crabe;
-
-
-
+// Contient tous les chemins et positions nécessaires au chargement d’un niveau
 typedef struct {
     char* fond_path;
     char* collision_path;
@@ -105,12 +106,10 @@ typedef struct {
     char* trainee_path;
     char* img_petit_path;
     char* img_fin_path;
-    int gros_positions[3][2];  // Jusqu'à 3 bonus "gros"
-    int petit_positions[3][2]; // Jusqu'à 3 bonus "petit"
-    int vite_positions[3][2];  // Jusqu'à 3 bonus "vite"
-    int nb_gros;               // Nombre réel de bonus "gros" dans ce niveau
-    int nb_petit;              // Nombre réel de bonus "petit"
-    int nb_vite;               // Nombre réel de bonus "vite"
+    int gros_positions[3][2];
+    int petit_positions[3][2];
+    int vite_positions[3][2];
+    int nb_gros, nb_petit, nb_vite;
     char* roues_paths[4];
     char* checkpoint_path;
     char* musique_path;
@@ -118,22 +117,22 @@ typedef struct {
     Roue roues_positions[NB_ROUES];
 } NiveauRessources;
 
+// Représente un bonus (taille, vitesse, etc.)
 typedef struct {
     int x, y;
     int actif;
     int type; // 0=gros, 1=petit, 2=vite
 } Bonus;
 
-#define MAX_BONUS 10 // Nombre maximum de bonus par niveau
+#define MAX_BONUS 10
 
-
+// Structure principale contenant tout l’état du jeu
 typedef struct {
     Joueur joueur;
     TypeNiveau niveau_actuel;
     int decor_scroll;
     int temps_jeu;
     int dernier_cp;
-    int joueur_est_mort;
     int positions_cp[NB_CHECKPOINTS][2];
     int position_champi[NB_CHAMPI][2];
     int position_liane[NB_LIANE][2];
@@ -143,28 +142,19 @@ typedef struct {
     int temps_trainee;
     int temps_depart;
 
-
     // Ressources graphiques
-    BITMAP *fond;
-    BITMAP *page;
-    BITMAP *collision_map;
-    BITMAP *sprite_joueur[2]; // 0=normal, 1=saut
-    BITMAP *img_bonus[4]; // 0=gros, 1=petit, 2=vite
-    BITMAP *img_explosion;
-    BITMAP *img_trainee;
-    BITMAP *img_checkpoint;
-    BITMAP *img_champi;
-    BITMAP *img_liane;
-    BITMAP *img_poisson;
-    BITMAP *img_crabe;
+    BITMAP *fond, *page, *collision_map;
+    BITMAP *sprite_joueur[2];
+    BITMAP *img_bonus[4];
+    BITMAP *img_explosion, *img_trainee;
+    BITMAP *img_checkpoint, *img_champi;
+    BITMAP *img_liane, *img_poisson, *img_crabe;
     BITMAP *roues[4];
-    BITMAP *img_fin_mer;  // Image de fin du niveau mer
+    BITMAP *img_fin_mer;
 
-
-    // Éléments du jeu
+    // Éléments animés
     int timer_roues;
     Roue roues_struct[NB_ROUES];
-
     Checkpoint checkpoints[NB_CHECKPOINTS];
     champi champis[NB_CHAMPI];
     liane lianes[NB_LIANE];
@@ -172,31 +162,22 @@ typedef struct {
     crabe crabes[NB_CRABE];
 
     // Sons
-    SAMPLE *musique_niveau;
-    SAMPLE *son_saut;
-    SAMPLE *son_explosion;
-    SAMPLE *musique_menu;
-    SAMPLE *musique_jeu;
-    SAMPLE *son_checkpoint;
-
+    SAMPLE *musique_niveau, *son_saut, *son_explosion;
+    SAMPLE *musique_menu, *musique_jeu, *son_checkpoint;
 
     // État des bonus
-    float facteur_perso; // Facteur de taille (0.8 pour petit, 1.5 pour gros)
+    float facteur_perso;
     int temps_bonus[3];
-
-    int bonus_pos[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE][2];  // Positions [type][instance][x/y]
-    int bonus_actifs[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE];  // Activation
-    int bonus_collision[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE]; // Collision
+    int bonus_pos[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE][2];
+    int bonus_actifs[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE];
+    int bonus_collision[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE];
     int temps_bonus_vite;
     int vitesse_scroll;
     Bonus bonus[MAX_BONUS];
     int nb_bonus;
-    int invincible_aux_lianes;  // 1 = invincible, 0 = vulnérable
-    int temps_invincible_lianes; // Durée restante
-
-
+    int invincible_aux_lianes;
+    int temps_invincible_lianes;
 } EtatJeu;
-
 
 // Ajouter le prototype de fonction
 void gestion_collision_champis(EtatJeu *etat);
@@ -231,20 +212,51 @@ void gestion_collision_roues(EtatJeu *etat);
 int verifier_collision_roue(Joueur *joueur, BITMAP *roue, int roue_x, int roue_y, int decor_scroll);
 
 // --- Checkpoints ---
+// Met à jour les checkpoints en fonction de la progression du joueur.
 void maj_checkpoints(EtatJeu *etat);
+
+// Vérifie si le joueur est sur un checkpoint spécifique (selon ses coordonnées).
+// Paramètres :
+//   - joueur : pointeur vers le joueur
+//   - cp_x, cp_y : coordonnées du checkpoint
+//   - scroll : scrolling actuel du décor
+//   - sw, sh : dimensions de la zone de détection
 int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sw, int sh);
 
+
 // --- Arrivée / victoire ---
+// Détecte si le joueur a atteint la fin du niveau et déclenche l’écran de victoire.
+// Paramètres : etat - pointeur vers l’état du jeu
 int detecter_arrivee(EtatJeu *etat);
+
 
 // --- Utilitaire ---
 
+// Vérifie si deux rectangles sont en collision (utilisé pour toutes les détections).
+// Paramètres : coordonnées et tailles des deux rectangles à tester.
 int collision(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2);
+
+// Initialise les composants audio d'Allegro (installation, volume, etc.).
 void initialisation_audio();
-SAMPLE* charger_musique(const char* path);
+
+// Joue une musique (SAMPLE*) avec ou sans boucle selon le paramètre loop (1 = oui, 0 = non).
 void jouer_musique(SAMPLE* musique, int loop);
+
+// Arrête la musique actuellement en cours de lecture.
 void arreter_musique();
+
+// Sauvegarde la progression du joueur dans un fichier de sauvegarde associé à son pseudo.
+// Paramètres :
+//   - pseudo : nom du joueur
+//   - niveau_max_debloque : dernier niveau débloqué
+//   - dernier_cp : checkpoint atteint
+//   - temps_jeu : temps total de jeu
+//   - etat : pointeur vers l’état actuel du jeu
 void sauvegarder_partie(const char *pseudo, int niveau_max_debloque, int dernier_cp, int temps_jeu, EtatJeu *etat);
+
+// Charge une sauvegarde pour un pseudo donné. Remplit les pointeurs passés en paramètres.
+// Retourne 1 si chargement réussi, 0 sinon.
+// Paramètres (pointeurs vers les données à remplir) : niveau, checkpoint, temps, scroll
 int charger_partie(const char *pseudo, int *niveau_max_debloque, int *dernier_cp, int *temps_jeu, int *scroll_cp);
 
 #endif // BADLAND_H
