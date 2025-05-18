@@ -740,7 +740,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .img_petit_path = "petit.bmp",
         .checkpoint_path = "checkpoint3.bmp",
         .roues_paths = {"roue0.bmp", "roue1.bmp", "roue2.bmp", "roue3.bmp"},
-        .positions_cp = {{600, 600}, {2400, 600}, {4000, 600}, {5300, 600}},
+        .positions_cp = {{600, 450}, {2400, 470}, {5300, 470}, {7300, 470}},
         .roues_positions = {{20000, 170,0},
         {20000, 390,0},
         {20000, 130,0},
@@ -762,7 +762,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
     init_jeu(&etat, niveau, pseudo);
     SAMPLE *musique_niveau;
     etat.temps_depart = clock();
-    etat.dernier_cp = -1;
+
     int afficher_vite = 0, vite_collision = 0;
     int vitesse_scroll = DECOR_SCROLL_SPEED;
     int temps_bonus_vite = 0;
