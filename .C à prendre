@@ -733,7 +733,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         // Vite bonus (3 instances)
         etat.bonus_pos[2][0][0] = 2000; etat.bonus_pos[2][0][1] = 350;
         etat.bonus_pos[2][1][0] = 3200; etat.bonus_pos[2][1][1] = 300;
-        etat.bonus_pos[2][2][0] = 5000; etat.bonus_pos[2][2][1] = 280;
+        etat.bonus_pos[2][2][0] = 5000; etat.bonus_pos[2][2][1] = 6000;
         break;
 
 
