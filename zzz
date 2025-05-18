@@ -240,8 +240,22 @@ structure d'état du jeu : EtatJeu *etat
 // return  : void
 void charger_ressources_niveau(EtatJeu *etat);
 
+// Paramètres :
+/*
+état du jeu à nettoyer : EtatJeu *etat
+*/
+// Fonctionnement : Libère toutes les ressources mémoire allouées (graphiques, sons, etc.)
+// Ce que ça renvoie : void
 void nettoyer_ressources(EtatJeu *etat);
+
 // --- Affichage ---
+
+// Paramètres :
+/*
+état du jeu à afficher : EtatJeu *etat
+*/
+// Fonctionnement : Affiche l'ensemble des éléments graphiques de la scène de jeu
+// Ce que ça renvoie : void
 void afficher_scene(EtatJeu *etat);
 
 // --- Gestion du joueur / actions ---
