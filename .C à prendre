@@ -408,20 +408,15 @@ void afficher_scene(EtatJeu *etat) {
     clear_bitmap(etat->page);
     blit(etat->fond, etat->page, etat->decor_scroll, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
 
-    for (int i = 0; i < 3; i++) {
-        if (etat->bonus_actifs[i] && !etat->bonus_collision[i]) {
-            draw_sprite(etat->page, etat->img_bonus[i],
-                       etat->bonus_pos[i][0] - etat->decor_scroll,
-                       etat->bonus_pos[i][1]);
+    for (int i = 0; i < NB_BONUS_TYPES; i++) {
+        if (etat->bonus_actifs[3][i] && !etat->bonus_collision[3][i]) {
+            draw_sprite(etat->page, etat->img_bonus[3],
+                        etat->bonus_pos[3][i][0] - etat->decor_scroll,
+                        etat->bonus_pos[3][i][1]);
         }
     }
 
 
-    if (etat->bonus_actifs[3][0] && !etat->bonus_collision[3][0]) {
-        draw_sprite(etat->page, etat->img_bonus[3],
-                    etat->bonus_pos[3][0][0] - etat->decor_scroll,
-                    etat->bonus_pos[3][0][1]);
-    }
 
     if (etat->invincible_aux_lianes) {
         // Dessine un effet de bouclier autour du joueur
@@ -773,7 +768,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         etat.bonus_pos[2][1][0] = 4200; etat.bonus_pos[2][1][1] = 300;
         etat.bonus_pos[2][2][0] = 7000; etat.bonus_pos[2][2][1] = 380;
 
-        etat.bonus_pos[3][0][0] = 1500; etat.bonus_pos[3][0][1] = 200;
+        etat.bonus_pos[3][0][0] = 1500; etat.bonus_pos[3][0][1] = 300;
         etat.bonus_pos[3][1][0] = 7000; etat.bonus_pos[3][1][1] = 300;
             break;
 
@@ -938,6 +933,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         if (temps_actuel >= 1) afficher_gros = 1;
         if (temps_actuel >= 1) afficher_petit = 1;
         if (temps_actuel >= 1) afficher_vite = 1;
+
 
         for (int type = 0; type < NB_BONUS_TYPES; type++) {
             for (int instance = 0; instance < NB_BONUS_PAR_TYPE; instance++) {
