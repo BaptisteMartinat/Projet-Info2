@@ -48,7 +48,7 @@ void init_jeu(EtatJeu *etat, TypeNiveau niveau,const char *pseudo) {
 
 
 int detecter_arrivee(EtatJeu *etat) {
-    const int rayon = COLLISION_RADIUS; 
+    const int rayon = COLLISION_RADIUS;
     const int cx = etat->joueur.x + etat->joueur.largeur/2; // Centre X du joueur
     const int cy = etat->joueur.y + etat->joueur.hauteur/2; // Centre Y du joueur
 
@@ -81,10 +81,10 @@ int detecter_arrivee(EtatJeu *etat) {
             }
         }
     }
-    return 0; 
+    return 0;
 }
 
-// 3. Animation des roues
+// Animation des roues
 void maj_roues(EtatJeu *etat) {
     etat->timer_roues++;
     if (etat->timer_roues % 6 == 0) {
@@ -104,7 +104,7 @@ void maj_roues(EtatJeu *etat) {
     }
 }
 
-// 4. Collision roue avec checkpoint
+// Collision roue avec checkpoint
 void gestion_collision_roues(EtatJeu *etat) {
     const int rayon_collision = 90;
     int jx = etat->joueur.x + etat->decor_scroll + etat->joueur.largeur / 2;
@@ -118,7 +118,7 @@ void gestion_collision_roues(EtatJeu *etat) {
         int distance2 = dx * dx + dy * dy;
 
         if (distance2 < rayon_collision * rayon_collision) {
-            etat->joueur_est_mort = 1; 
+            etat->joueur_est_mort = 1;
             return;
         }
     }
@@ -126,7 +126,7 @@ void gestion_collision_roues(EtatJeu *etat) {
 
 
 
-// 5. Checkpoints
+//  Checkpoints
 int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int cp_width, int cp_height) {
     const int CP_ZONE_LARGEUR = cp_width;
     const int CP_ZONE_HAUTEUR = cp_height;
@@ -137,7 +137,7 @@ int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int cp
     int jx2 = jx1 + joueur->largeur;
     int jy2 = jy1 + joueur->hauteur;
 
-    // Coordonnées du checkpoint 
+    // Coordonnées du checkpoint
     int cx1 = cp_x - scroll;
     int cy1 = cp_y - cp_height;
     int cx2 = cx1 + CP_ZONE_LARGEUR;
@@ -151,8 +151,8 @@ void gestion_collision_champis(EtatJeu *etat) {
     int joueur_y = etat->joueur.y;
 
     for (int i = 0; i < NB_CHAMPI; i++) {
-        const int champi_w = 100; 
-        const int champi_h = 120;  
+        const int champi_w = 100;
+        const int champi_h = 120;
         int champi_x = etat->champis[i].x + (138 - champi_w)/2;
         int champi_y = etat->champis[i].y + (198 - champi_h)/2;
 
@@ -229,7 +229,7 @@ void gerer_saut(EtatJeu *etat) {
         if ((readkey() >> 8) == KEY_SPACE) {
             etat->joueur.sprite_state = 1;
             etat->timer_saut = 10;
-            etat->joueur.dy = JUMP_STRENGTH; 
+            etat->joueur.dy = JUMP_STRENGTH;
 
             etat->temps_trainee = 200;
 
@@ -621,7 +621,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_liane = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_poisson = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
-        .positions_crabe = {{1220, 270}, {3450, 165}, {3800, 350}, {4250, 165}, {4850, 160}, {4850, 410}, {8100, 135}},
+        .positions_crabe = {{20000, 270}, {20000, 165}, {20000, 350}, {20000, 165}, {20000, 160}, {20000, 410}, {20000, 135}},
         .trainee_path = "saut.bmp",
         .img_vite_path = "vite.bmp",
         .img_invincible_path = "invincible_lianes.bmp",
@@ -636,7 +636,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         {6550, 420,0},{8000, 420,0}}
     };
 
-    // Niveau Montagne 
+    // Niveau Montagne
     niveaux[NIVEAU_MONTAGNE] = (NiveauRessources){
         .fond_path = "foret.bmp",
         .collision_path = "foret_colli.bmp",
@@ -651,7 +651,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .positions_champi = {{2058, 416}, {4524, 456}, {6400, 334}, {8420, 340}},
         .positions_liane = {{680, 125}, {4015, 126}, {6650, 112}, {7120, 130}},
         .positions_poisson = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
-        .positions_crabe = {{1220, 270}, {3450, 165}, {3800, 350}, {4250, 165}, {4850, 160}, {4850, 410}, {8100, 135}},
+        .positions_crabe = {{20000, 270}, {20000, 165}, {20000, 350}, {20000, 165}, {20000, 160}, {20000, 410}, {20000, 135}},
         .musique_path = "montagne.wav",
         .img_gros_path = "gros.bmp",
         .img_petit_path = "petit.bmp",
@@ -667,7 +667,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         {20000, 420,0},{20000, 420,0}}
     };
 
-    // Niveau Mer 
+    // Niveau Mer
     niveaux[NIVEAU_MER] = (NiveauRessources){
         .fond_path = "mer_fond.bmp",
         .collision_path = "mer_colli.bmp",
@@ -732,24 +732,24 @@ void gestion_collision_crabe(EtatJeu *etat) {
                 play_sample(etat->son_explosion, 255, 128, 1000, 0);
             }
 
-            return; 
+            return;
                      }
     }
 }
 
 
 void gestion_collision_poisson(EtatJeu *etat) {
- 
+
     int joueur_x = etat->joueur.x + etat->decor_scroll;
     int joueur_y = etat->joueur.y;
 
     for (int i = 0; i < NB_POISSON; i++) {
-     
-        const int poissons_w = 60;   
-        const int poissons_h = 50;   
 
-        int poissons_x = etat->poissons[i].x + 20;  
-        int poissons_y = etat->poissons[i].y + 25;  
+        const int poissons_w = 60;
+        const int poissons_h = 50;
+
+        int poissons_x = etat->poissons[i].x + 20;
+        int poissons_y = etat->poissons[i].y + 25;
 
         // Vérification de collision
         if (collision(joueur_x, joueur_y,
@@ -757,7 +757,7 @@ void gestion_collision_poisson(EtatJeu *etat) {
                      poissons_x, poissons_y,
                      poissons_w, poissons_h)) {
 
-         
+
             etat->joueur_est_mort = 1;
             etat->joueur.dx = 0;
             etat->joueur.dy = 0;
@@ -766,7 +766,7 @@ void gestion_collision_poisson(EtatJeu *etat) {
                 play_sample(etat->son_explosion, 255, 128, 1000, 0);
             }
 
-            return; 
+            return;
                      }
     }
 }
@@ -784,9 +784,9 @@ void sauvegarder_partie(const char *pseudo, int niveau_max_debloque, int dernier
     while (ancien && fgets(ligne, sizeof(ligne), ancien)) {
         sscanf(ligne, "%s %d %d %d %d", nom, &niv, &cp, &temps, &scroll);
         if (strcmp(nom, pseudo) != 0) {
-            fputs(ligne, temp);  
+            fputs(ligne, temp);
         } else {
-            trouve = 1;  
+            trouve = 1;
         }
     }
 
@@ -891,7 +891,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, int niveau_max_debloqu
 
         case NIVEAU_VOLCAN:
             musique_niveau = load_sample("lave.wav");
-        
+
                 etat.bonus_pos[0][0][0] = 20000; etat.bonus_pos[0][0][1] = 300;
         etat.bonus_pos[0][1][0] = 20000; etat.bonus_pos[0][1][1] = 250;
         etat.bonus_pos[0][2][0] = 20000; etat.bonus_pos[0][2][1] = 350;
@@ -1036,7 +1036,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, int niveau_max_debloqu
 
             if ((clock() - temps_mort) >= 1000) {
                 if (etat.dernier_cp != -1) {
-                    etat.joueur_est_mort = 2; 
+                    etat.joueur_est_mort = 2;
                 } else {
                     stop_sample(musique_niveau);
                     stop_sample(lave);
@@ -1060,7 +1060,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, int niveau_max_debloqu
                 etat.joueur_est_mort = 0;
                 explosion_affichee = 0;
             } else {
-                stop_sample(musique_niveau); 
+                stop_sample(musique_niveau);
                 stop_sample(lave);
                 menu_principal(lave, menu, montagne, mer);
                 return;
@@ -1178,7 +1178,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, int niveau_max_debloqu
 
                         if (type == 3) {  // Bonus Invincible Lianes
                             etat.invincible_aux_lianes = 1;
-                            etat.temps_invincible_lianes = 500;  
+                            etat.temps_invincible_lianes = 500;
                         }
 
                         if (type == 0 || type == 1) {
@@ -1245,7 +1245,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, int niveau_max_debloqu
     }
 
 
-    if (musique_niveau) stop_sample(musique_niveau);  
+    if (musique_niveau) stop_sample(musique_niveau);
     destroy_sample(musique_niveau);
     if (img_vite) destroy_bitmap(img_vite);
 
