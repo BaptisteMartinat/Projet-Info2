@@ -52,6 +52,20 @@ int detecter_arrivee(EtatJeu *etat) {
     const int cx = etat->joueur.x + etat->joueur.largeur/2; // Centre X du joueur
     const int cy = etat->joueur.y + etat->joueur.hauteur/2; // Centre Y du joueur
 
+    if (etat->niveau_actuel == NIVEAU_MER) {
+        int fin_x = FIN_MER_X - etat->decor_scroll;
+        int fin_y = FIN_MER_Y;
+        int fin_w = etat->img_fin_mer ? etat->img_fin_mer->w : 100;
+        int fin_h = etat->img_fin_mer ? etat->img_fin_mer->h : 100;
+
+        if (collision(etat->joueur.x, etat->joueur.y,
+                     etat->joueur.largeur, etat->joueur.hauteur,
+                     fin_x, fin_y,
+                     fin_w, fin_h)) {
+            return 1;  // Fin du niveau détectée
+                     }
+    }
+
     for (int dx = -rayon; dx <= rayon; dx++) {
         for (int dy = -rayon; dy <= rayon; dy++) {
             // Vérification si dans le cercle de collision
@@ -521,8 +535,27 @@ void afficher_scene(EtatJeu *etat) {
                  etat->joueur.x, etat->joueur.y,
                  etat->joueur.largeur, etat->joueur.hauteur);
 
+    if (etat->niveau_actuel == NIVEAU_MER) {
+        int fin_x = FIN_MER_X - etat->decor_scroll;
+        int fin_y = FIN_MER_Y;
+
+        // Vérifier si l'image est visible à l'écran
+        if (fin_x > -200 && fin_x < MY_SCREEN_W) {
+            if (etat->img_fin_mer) {
+                draw_sprite(etat->page, etat->img_fin_mer, fin_x, fin_y);
+            } else {
+                // Fallback: rectangle rouge si l'image n'est pas chargée
+                rectfill(etat->page, fin_x, fin_y,
+                        fin_x + 100, fin_y + 100,
+                        makecol(255, 0, 0));
+            }
+        }
+    }
+
     // Affichage du temps
     char buffer[50];
+
+
 
     etat->temps_jeu = (clock() - etat->temps_depart) / CLOCKS_PER_SEC;
     sprintf(buffer, "Temps : %d s", etat->temps_jeu);
@@ -709,6 +742,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .musique_path = "mer.wav",
         .explosion_path = "explosion_mer.bmp",
         .trainee_path = "saut3.bmp",
+        .img_fin_path = "fin_mer.bmp",
         .img_gros_path = "gros.bmp",
         .img_petit_path = "petit.bmp",
         .checkpoint_path = "checkpoint3.bmp",
@@ -1027,6 +1061,24 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
                 play_sample(mer, 200, 100, 920, 1);
                 jeu_scrolling(pseudo, NIVEAU_MER, lave, menu, montagne, mer);
             }else {
+                clear_bitmap(etat.page);
+                textout_centre_ex(etat.page, font, "NIVEAU MER TERMINE!",
+                                 MY_SCREEN_W/2, MY_SCREEN_H/2 - 20,
+                                 makecol(255, 255, 255), -1);
+                textout_centre_ex(etat.page, font, "TEMPS: ",
+                                 MY_SCREEN_W/2, MY_SCREEN_H/2 + 10,
+                                 makecol(255, 255, 255), -1);
+                textprintf_centre_ex(etat.page, font, MY_SCREEN_W/2, MY_SCREEN_H/2 + 30,
+                                   makecol(255, 255, 255), -1,
+                                   "%d secondes", etat.temps_jeu);
+                blit(etat.page, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+                // Attendre 3 secondes
+                rest(3000);
+
+                // Retour au menu
+                stop_sample(musique_niveau);
+                menu_principal(lave, menu, montagne, mer);
                 return;
 
             }
@@ -1299,7 +1351,17 @@ void charger_ressources_niveau(EtatJeu *etat) {
             exit(1);
         }
     }
+
+    // Charger l'image de fin pour le niveau mer
+    etat->img_fin_mer = load_bitmap(n->img_fin_path, NULL);
+    if (!etat->img_fin_mer) {
+        allegro_message("Erreur chargement fin_mer.bmp");
+        // On continue quand même avec un rectangle en fallback
+    }
 }
+
+
+
 
 
 void menu_principal(SAMPLE* lave, SAMPLE* menu, SAMPLE* montagne, SAMPLE* mer) {
