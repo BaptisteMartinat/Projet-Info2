@@ -252,6 +252,14 @@ void gestion_collision_crabe(EtatJeu *etat);
 void gestion_collision_poisson(EtatJeu *etat);
 
 // --- Roues (affichage, animation, collisions) ---
+// Paramètres : 
+/*
+  - int *etape_roue : pointeur vers la BITMAP actuelle des roues (image de 0 à 3)
+  - int *dernier_changement_roue : pointeur vers le temps du dernier changement d'étape
+  - int temps_actuel : temps écoulé depuis le début du jeu 
+*/
+// Fonctionnement : Gère l'animation cyclique simple des roues selon le temps
+// return  : void
 void gerer_roues(int *etape_roue, int *dernier_changement_roue, int temps_actuel); // version simple
 void maj_roues(EtatJeu *etat);
 void gestion_collision_roues(EtatJeu *etat);
