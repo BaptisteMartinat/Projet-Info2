@@ -83,6 +83,7 @@ typedef struct {
     char* explosion_path;
     char* champi_path;
     char* liane_path;
+    char* img_invincible_path;
     int positions_champi[NB_CHAMPI][2];
     int positions_liane[NB_LIANE][2];
     char* trainee_path;
