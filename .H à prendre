@@ -18,7 +18,7 @@
 #define SAVE_FILE "save.txt"
 #define NB_CHECKPOINTS 4
 #define NB_ROUES 5  // Modifier la valeur existante
-#define NB_BONUS_TYPES 3  // Gros, Petit, Vite
+#define NB_BONUS_TYPES 4  // Gros, Petit, Vite
 #define NB_BONUS_PAR_TYPE 3  // Nombre d'instances de chaque type
 
 
@@ -164,6 +164,8 @@ typedef struct {
     int vitesse_scroll;
     Bonus bonus[MAX_BONUS];
     int nb_bonus;
+    int invincible_aux_lianes;  // 1 = invincible, 0 = vulnérable
+    int temps_invincible_lianes; // Durée restante
 
 
 } EtatJeu;
