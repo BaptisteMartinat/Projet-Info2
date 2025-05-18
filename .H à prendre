@@ -177,8 +177,8 @@ void gestion_collision_lianes(EtatJeu *etat);
 // --- Fonctions principales ---
 void initialisation_allegro();
 void init_jeu(EtatJeu *etat, TypeNiveau niveau, const char *pseudo);
-void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *menu, SAMPLE *montagne);
-void menu_principal(SAMPLE *lave, SAMPLE *menu, SAMPLE* montagne);
+void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *menu, SAMPLE *montagne,SAMPLE *mer);
+void menu_principal(SAMPLE *lave, SAMPLE *menu, SAMPLE* montagne, SAMPLE* mer);
 void charger_ressources_niveau(EtatJeu *etat);
 
 void nettoyer_ressources(EtatJeu *etat);
