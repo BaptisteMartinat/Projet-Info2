@@ -164,14 +164,18 @@ void gestion_collision_champis(EtatJeu *etat) {
     int joueur_y = etat->joueur.y;
 
     for (int i = 0; i < NB_CHAMPI; i++) {
-        // Dimensions du champignon
-        const int champi_w = 50;
-        const int champi_h = 50;
+        // Nouvelles dimensions de la hitbox (plus petites que l'image)
+        const int champi_w = 100;  // Largeur réduite
+        const int champi_h = 120;   // Hauteur réduite
+
+        // Calcul du décalage pour centrer la hitbox
+        int champi_x = etat->champis[i].x + (138 - champi_w)/2;
+        int champi_y = etat->champis[i].y + (198 - champi_h)/2;
 
         // Vérification de collision rectangle-rectangle
         if (collision(joueur_x, joueur_y,
                      etat->joueur.largeur, etat->joueur.hauteur,
-                     etat->champis[i].x, etat->champis[i].y,
+                     champi_x, champi_y,
                      champi_w, champi_h)) {
 
             if (etat->dernier_cp != -1) {
@@ -434,14 +438,20 @@ void afficher_scene(EtatJeu *etat) {
         }
     }
 
-    // Affichage des champignons
+    // Dans la partie affichage des champignons :
     for (int i = 0; i < NB_CHAMPI; i++) {
         int x = etat->position_champi[i][0] - etat->decor_scroll;
         int y = etat->position_champi[i][1];
         draw_sprite(etat->page, etat->img_champi, x, y);
 
-        // Debug hitbox (optionnel)
-        rect(etat->page, x, y, x+50, y+50, makecol(255, 0, 0));
+        // Debug hitbox - nouvelle version
+        const int champi_w = 100;
+        const int champi_h = 120;
+        int hitbox_x = x + (138 - champi_w)/2;
+        int hitbox_y = y + (198 - champi_h)/2;
+        rect(etat->page, hitbox_x, hitbox_y,
+             hitbox_x + champi_w, hitbox_y + champi_h,
+             makecol(255, 0, 0));
     }
     for (int i = 0; i < NB_LIANE; i++) {
         int x = etat->position_liane[i][0] - etat->decor_scroll;
