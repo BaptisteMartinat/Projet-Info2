@@ -427,7 +427,7 @@ void afficher_scene(EtatJeu *etat) {
         int y = etat->positions_cp[i][1] - etat->img_checkpoint->h;
 
         // Debug hitbox (optionnel)
-        rect(etat->page, x, y, x+170, y+170, makecol(255, 0, 0));
+
 
         if (etat->checkpoints[i].actif) {
             draw_trans_sprite(etat->page, etat->img_checkpoint, x, y);
@@ -447,9 +447,7 @@ void afficher_scene(EtatJeu *etat) {
         const int champi_h = 120;
         int hitbox_x = x + (138 - champi_w)/2;
         int hitbox_y = y + (198 - champi_h)/2;
-        rect(etat->page, hitbox_x, hitbox_y,
-             hitbox_x + champi_w, hitbox_y + champi_h,
-             makecol(255, 0, 0));
+
     }
     //affichaage lianes
     for (int i = 0; i < NB_LIANE; i++) {
@@ -462,9 +460,7 @@ void afficher_scene(EtatJeu *etat) {
         // Debug hitbox (80x200 avec décalage 85,25)
         int hitbox_x = x + 85;
         int hitbox_y = y + 25;
-        rect(etat->page, hitbox_x, hitbox_y,
-             hitbox_x + 80, hitbox_y + 200,
-             makecol(255, 0, 0));
+
     }
 
     //affichage poissons
@@ -478,9 +474,7 @@ void afficher_scene(EtatJeu *etat) {
         const int poisson_h = 120;
         int hitbox_x = x + (138 - poisson_w)/2;
         int hitbox_y = y + (198 - poisson_h)/2;
-        rect(etat->page, hitbox_x, hitbox_y,
-             hitbox_x + poisson_w, hitbox_y + poisson_h,
-             makecol(255, 0, 0));
+
     }
 
     //affichage crabes
@@ -494,9 +488,6 @@ void afficher_scene(EtatJeu *etat) {
         const int crabe_h = 120;
         int hitbox_x = x + (138 - crabe_w)/2;
         int hitbox_y = y + (198 - crabe_h)/2;
-        rect(etat->page, hitbox_x, hitbox_y,
-             hitbox_x + crabe_w, hitbox_y + crabe_h,
-             makecol(255, 0, 0));
     }
 
     // Affichage des bonus
@@ -677,7 +668,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_liane = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_poisson = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
-        .positions_crabe = {{20000, 0}, {20000, 0}, {20000, 0},{20000, 0},{20000, 0},{20000, 0}, {20000, 0}},
+        .positions_crabe = {{1220, 270}, {3450, 165}, {3800, 350}, {4250, 165}, {4850, 160}, {4850, 410}, {8100, 135}},
         .trainee_path = "saut.bmp",
         .img_vite_path = "vite.bmp",
         .img_invincible_path = "invincible_lianes.bmp",
@@ -708,7 +699,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .positions_champi = {{2058, 416}, {4524, 456}, {6400, 334}, {8420, 340}},
         .positions_liane = {{680, 125}, {4015, 126}, {6650, 112}, {7120, 130}},
         .positions_poisson = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
-        .positions_crabe = {{20000, 0}, {20000, 0},{20000, 0},{20000, 0},{20000, 0}, {20000, 0}, {20000, 0}},
+        .positions_crabe = {{1220, 270}, {3450, 165}, {3800, 350}, {4250, 165}, {4850, 160}, {4850, 410}, {8100, 135}},
         .musique_path = "montagne.wav",
         .img_gros_path = "gros.bmp",
         .img_petit_path = "petit.bmp",
@@ -740,7 +731,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_liane = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_poisson = {{760, 230}, {3250, 300}, {5800, 100}, {7500, 270}},
-        .positions_crabe = {{1220, 270}, {3450, 165}, {3750, 325}, {4250, 165}, {4850, 160}, {4850, 410}, {8100, 135}},
+        .positions_crabe = {{1220, 270}, {3450, 165}, {3800, 350}, {4250, 165}, {4850, 160}, {4850, 410}, {8100, 135}},
         .musique_path = "mer.wav",
         .explosion_path = "explosion_mer.bmp",
         .trainee_path = "saut3.bmp",
