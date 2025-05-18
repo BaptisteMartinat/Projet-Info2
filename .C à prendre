@@ -449,7 +449,7 @@ void afficher_scene(EtatJeu *etat) {
         }
     }
 
-    // Dans la partie affichage des champignons :
+    //  affichage des champignons :
     for (int i = 0; i < NB_CHAMPI; i++) {
         int x = etat->position_champi[i][0] - etat->decor_scroll;
         int y = etat->position_champi[i][1];
@@ -464,6 +464,7 @@ void afficher_scene(EtatJeu *etat) {
              hitbox_x + champi_w, hitbox_y + champi_h,
              makecol(255, 0, 0));
     }
+    //affichaage lianes
     for (int i = 0; i < NB_LIANE; i++) {
         int x = etat->position_liane[i][0] - etat->decor_scroll;
         int y = etat->position_liane[i][1];
@@ -476,6 +477,38 @@ void afficher_scene(EtatJeu *etat) {
         int hitbox_y = y + 25;
         rect(etat->page, hitbox_x, hitbox_y,
              hitbox_x + 80, hitbox_y + 200,
+             makecol(255, 0, 0));
+    }
+
+    //affichage poissons
+    for (int i = 0; i < NB_POISSON; i++) {
+        int x = etat->position_poisson[i][0] - etat->decor_scroll;
+        int y = etat->position_poisson[i][1];
+        draw_sprite(etat->page, etat->img_poisson, x, y);
+
+        // Debug hitbox - nouvelle version
+        const int poisson_w = 100;
+        const int poisson_h = 120;
+        int hitbox_x = x + (138 - poisson_w)/2;
+        int hitbox_y = y + (198 - poisson_h)/2;
+        rect(etat->page, hitbox_x, hitbox_y,
+             hitbox_x + poisson_w, hitbox_y + poisson_h,
+             makecol(255, 0, 0));
+    }
+
+    //affichage crabes
+    for (int i = 0; i < NB_CRABE; i++) {
+        int x = etat->position_crabe[i][0] - etat->decor_scroll;
+        int y = etat->position_crabe[i][1];
+        draw_sprite(etat->page, etat->img_crabe, x, y);
+
+        // Debug hitbox - nouvelle version
+        const int crabe_w = 100;
+        const int crabe_h = 120;
+        int hitbox_x = x + (138 - crabe_w)/2;
+        int hitbox_y = y + (198 - crabe_h)/2;
+        rect(etat->page, hitbox_x, hitbox_y,
+             hitbox_x + crabe_w, hitbox_y + crabe_h,
              makecol(255, 0, 0));
     }
 
@@ -577,6 +610,16 @@ void nettoyer_ressources(EtatJeu *etat) {
             etat->roues[i] = NULL;
         }
     }
+    //poisons
+    if (etat->img_poisson) {
+        destroy_bitmap(etat->img_poisson);
+        etat->img_poisson = NULL;
+    }
+//crabes
+    if (etat->img_crabe) {
+        destroy_bitmap(etat->img_crabe);
+        etat->img_crabe = NULL;
+    }
 
     // Page de rendu
     if (etat->page) {
@@ -623,8 +666,12 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .explosion_path = "explosion_lave.bmp",
         .champi_path = "champignon.bmp",
         .liane_path = "liane.bmp",
+        .poisson_path = "poisson.bmp",
+        .crabe_path = "crabe.bmp",
         .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_liane = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
+        .positions_poisson = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
+        .positions_crabe = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
         .trainee_path = "saut.bmp",
         .img_vite_path = "vite.bmp",
         .img_invincible_path = "invincible_lianes.bmp",
@@ -649,8 +696,12 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .img_invincible_path = "invincible_lianes.bmp",
         .champi_path = "champignon.bmp",
         .liane_path = "liane.bmp",
+        .poisson_path = "poisson.bmp",
+        .crabe_path = "crabe.bmp",
         .positions_champi = {{2058, 416}, {4524, 456}, {6400, 334}, {8420, 340}},
         .positions_liane = {{680, 125}, {4015, 126}, {6650, 112}, {7120, 130}},
+        .positions_poisson = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
+        .positions_crabe = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
         .musique_path = "montagne.wav",
         .img_gros_path = "gros.bmp",
         .img_petit_path = "petit.bmp",
@@ -676,8 +727,12 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .img_invincible_path = "invincible_lianes.bmp",
         .champi_path = "champignon.bmp",
         .liane_path = "liane.bmp",
+        .poisson_path = "poisson.bmp",
+        .crabe_path = "crabe.bmp",
         .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_liane = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
+        .positions_poisson = {{100, 300}, {200, 300}, {300, 300}, {300, 300}},
+        .positions_crabe = {{100, 500}, {200, 500}, {300, 500}, {300, 500}},
         .musique_path = "mer.wav",
         .explosion_path = "explosion_mer.bmp",
         .trainee_path = "saut3.bmp",
@@ -685,7 +740,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .img_petit_path = "petit.bmp",
         .checkpoint_path = "checkpoint3.bmp",
         .roues_paths = {"roue0.bmp", "roue1.bmp", "roue2.bmp", "roue3.bmp"},
-        .positions_cp = {{550, 320}, {2350, 340}, {3750, 330}, {5250, 350}},
+        .positions_cp = {{600, 600}, {2400, 600}, {4000, 600}, {5300, 600}},
         .roues_positions = {{20000, 170,0},
         {20000, 390,0},
         {20000, 130,0},
@@ -1083,6 +1138,19 @@ void charger_ressources_niveau(EtatJeu *etat) {
     etat->img_checkpoint = load_bitmap(n->checkpoint_path, NULL);
     etat->img_champi = load_bitmap(n->champi_path, NULL);
     etat->img_liane = load_bitmap(n->liane_path, NULL);
+    etat->img_poisson = load_bitmap(n->poisson_path, NULL);
+    etat->img_crabe = load_bitmap(n->crabe_path, NULL);
+
+    if (!etat->img_poisson) {
+        allegro_message("Erreur chargement %s", n->poisson_path);
+        exit(1);
+    }
+
+
+    if (!etat->img_crabe) {
+        allegro_message("Erreur chargement %s", n->crabe_path);
+        exit(1);
+    }
 
     // Charger la musique du niveau
     etat->musique_niveau = load_sample(n->musique_path);
@@ -1100,6 +1168,22 @@ void charger_ressources_niveau(EtatJeu *etat) {
         etat->lianes[i].y = n->positions_liane[i][1];
         etat->position_liane[i][0] = n->positions_liane[i][0];
         etat->position_liane[i][1] = n->positions_liane[i][1];
+    }
+
+    // Initialiser les positions des champignons
+    for (int i = 0; i < NB_POISSON; i++) {
+        etat->poissons[i].x = n->positions_poisson[i][0];
+        etat->poissons[i].y = n->positions_poisson[i][1];
+        etat->position_poisson[i][0] = n->positions_poisson[i][0];
+        etat->position_poisson[i][1] = n->positions_poisson[i][1];
+    }
+
+    // Initialiser les positions des crabes
+    for (int i = 0; i < NB_CRABE; i++) {
+        etat->crabes[i].x = n->positions_crabe[i][0];
+        etat->crabes[i].y = n->positions_crabe[i][1];
+        etat->position_crabe[i][0] = n->positions_crabe[i][0];
+        etat->position_crabe[i][1] = n->positions_crabe[i][1];
     }
 
     // Charger les sprites des roues
