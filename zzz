@@ -283,12 +283,64 @@ int detecter_arrivee(EtatJeu *etat);
 
 // --- Utilitaire ---
 
+// Paramètres :
+/*
+position et taille 1er rectangle : int x1,y1,w1,h1
+position et taille 2nd rectangle : int x2,y2,w2,h2
+*/
+// Fonctionnement : Détecte la collision entre deux rectangles
+// Ce que ça renvoie : 1 si collision, 0 sinon
 int collision(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2);
+
+// Paramètres : aucun
+// Fonctionnement : Initialise le système audio Allegro
+// Ce que ça renvoie : void
 void initialisation_audio();
+
+// Paramètres :
+/*
+chemin du fichier audio : const char* path
+*/
+// Fonctionnement : Charge un fichier audio en mémoire
+// Ce que ça renvoie : SAMPLE* (pointeur sur échantillon) ou NULL si erreur
 SAMPLE* charger_musique(const char* path);
+
+// Paramètres :
+/*
+échantillon audio : SAMPLE* musique
+mode de lecture : int loop (1=bouclé, 0=une fois)
+*/
+// Fonctionnement : Joue un échantillon sonore
+// Ce que ça renvoie : void
 void jouer_musique(SAMPLE* musique, int loop);
+
+// Paramètres : aucun
+// Fonctionnement : Arrête toute musique en cours de lecture
+// Ce que ça renvoie : void
 void arreter_musique();
+
+// Paramètres :
+/*
+pseudo du joueur : const char *pseudo
+niveau max atteint : int niveau_max_debloque
+dernier checkpoint : int dernier_cp
+temps de jeu : int temps_jeu
+état du jeu : EtatJeu *etat
+*/
+// Fonctionnement : Sauvegarde la progression dans un fichier
+// Ce que ça renvoie : void
 void sauvegarder_partie(const char *pseudo, int niveau_max_debloque, int dernier_cp, int temps_jeu, EtatJeu *etat);
+
+// Paramètres :
+/*
+pseudo du joueur : const char *pseudo
+pointeur niveau max : int *niveau_max_debloque
+pointeur dernier cp : int *dernier_cp
+pointeur temps jeu : int *temps_jeu
+pointeur position scroll : int *scroll_cp
+*/
+// Fonctionnement : Charge une partie depuis un fichier de sauvegarde
+// Ce que ça renvoie : 1 si succès, 0 si échec
 int charger_partie(const char *pseudo, int *niveau_max_debloque, int *dernier_cp, int *temps_jeu, int *scroll_cp);
 
 #endif // BADLAND_H
