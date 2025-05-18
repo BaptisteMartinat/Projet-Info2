@@ -193,13 +193,31 @@ void gestion_collision_champis(EtatJeu *etat);
 void gestion_collision_lianes(EtatJeu *etat);
 
 // --- Fonctions principales ---
-// --- Fonctions principales ---
+/* Initialise la bibliothèque Allegro et ses add-ons */
+/* Pas de retour */
+/* Pas de paramètres */
 void initialisation_allegro();
+
+/* Prépare l'état du jeu pour un nouveau niveau */
+/* Pas de retour */
+/* Param: *etat, niveau, pseudo */
 void init_jeu(EtatJeu *etat, TypeNiveau niveau, const char *pseudo);
+
+/* Boucle principale du jeu avec défilement */
+/* Pas de retour */
+/* Param: pseudo, niveau, niveau_max_debloque, dernier_cp, scroll_cp, partie_chargee, temps_jeu, *lave, *menu, *montagne, *mer */
 void jeu_scrolling(const char *pseudo, TypeNiveau niveau, int niveau_max_debloque,
                    int dernier_cp, int scroll_cp, int partie_chargee, int temps_jeu,
                    SAMPLE *lave, SAMPLE *menu, SAMPLE *montagne, SAMPLE *mer);
+
+/* Affiche et gère le menu principal */
+/* Pas de retour */
+/* Param: *lave, *menu, *montagne, *mer */
 void menu_principal(SAMPLE *lave, SAMPLE *menu, SAMPLE* montagne, SAMPLE* mer);
+
+/* Charge les ressources graphiques/sons pour le niveau actuel */
+/* Pas de retour */
+/* Param: *etat */
 void charger_ressources_niveau(EtatJeu *etat);
 
 void nettoyer_ressources(EtatJeu *etat);
