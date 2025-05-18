@@ -104,32 +104,19 @@ void maj_roues(EtatJeu *etat) {
 
 // 4. Collision roue avec checkpoint
 void gestion_collision_roues(EtatJeu *etat) {
-    const int rayon_collision = 90; // Rayon de collision
-
-    // Centre du joueur (coordonnées globales)
+    const int rayon_collision = 90;
     int jx = etat->joueur.x + etat->decor_scroll + etat->joueur.largeur / 2;
     int jy = etat->joueur.y + etat->joueur.hauteur / 2;
 
     for (int i = 0; i < NB_ROUES; i++) {
-        // Position de la roue
         int rx = etat->roues_struct[i].x;
         int ry = etat->roues_struct[i].y;
-
-        // Calcul de la distance au carré
         int dx = jx - rx;
         int dy = jy - ry;
         int distance2 = dx * dx + dy * dy;
 
-        // Vérification collision
         if (distance2 < rayon_collision * rayon_collision) {
-            if (etat->dernier_cp != -1) {
-                // Réapparition au checkpoint
-                etat->joueur_est_mort = 1;
-            } else {
-                // Retour au menu si aucun checkpoint
-                arreter_musique();
-                menu_principal(etat->musique_menu, etat->musique_jeu, etat->musique_niveau, etat->musique_niveau);
-            }
+            etat->joueur_est_mort = 1; // Toujours déclencher la mort
             return;
         }
     }
@@ -178,20 +165,13 @@ void gestion_collision_champis(EtatJeu *etat) {
                      champi_x, champi_y,
                      champi_w, champi_h)) {
 
-            if (etat->dernier_cp != -1) {
-                // Mort avec checkpoint disponible
-                etat->joueur_est_mort = 1;
-            } else {
-                // Retour au menu si aucun checkpoint
-                if (etat->musique_niveau) {
-                    stop_sample(etat->musique_niveau);
-                }
-                menu_principal(etat->musique_menu, etat->musique_jeu, etat->musique_niveau, etat->musique_niveau);
-            }
+            etat->joueur_est_mort = 1; // Toujours déclencher la mort
             return;
                      }
     }
 }
+
+
 void gestion_collision_lianes(EtatJeu *etat) {
     if (etat->invincible_aux_lianes) return;
     // Position globale du joueur (avec le défilement)
@@ -212,14 +192,7 @@ void gestion_collision_lianes(EtatJeu *etat) {
                      liane_x, liane_y,
                      liane_w, liane_h)) {
 
-            if (etat->dernier_cp != -1) {
-                etat->joueur_est_mort = 1;
-            } else {
-                if (etat->musique_niveau) {
-                    stop_sample(etat->musique_niveau);
-                }
-                menu_principal(etat->musique_menu, etat->musique_jeu, etat->musique_niveau, etat->musique_niveau);
-            }
+            etat->joueur_est_mort = 1; // Toujours déclencher la mort
             return;
                      }
     }
@@ -755,6 +728,80 @@ void afficher_mort(BITMAP *page, BITMAP *img_explosion, Joueur *joueur) {
     draw_sprite(page, img_explosion, x, y);
 
 }
+
+
+void gestion_collision_crabe(EtatJeu *etat) {
+    // Position globale du joueur (avec le défilement)
+    int joueur_x = etat->joueur.x + etat->decor_scroll;
+    int joueur_y = etat->joueur.y;
+
+    for (int i = 0; i < NB_CRABE; i++) {
+        // Ignorer les crabes désactivés (position x = 20000)
+        if (etat->crabes[i].x == 20000) continue;
+
+        // Dimensions de la hitbox du crabe (ajustez selon votre sprite)
+        const int crabe_w = 60;   // Largeur de la hitbox
+        const int crabe_h = 40;   // Hauteur de la hitbox
+
+        // Position du crabe avec décalage pour centrer la hitbox
+        int crabe_x = etat->crabes[i].x + 20;  // Décalage horizontal
+        int crabe_y = etat->crabes[i].y + 10;  // Décalage vertical
+
+        // Vérification de collision
+        if (collision(joueur_x, joueur_y,
+                     etat->joueur.largeur, etat->joueur.hauteur,
+                     crabe_x, crabe_y,
+                     crabe_w, crabe_h)) {
+
+            // Déclencher la mort du joueur
+            etat->joueur_est_mort = 1;
+
+            // Jouer le son d'explosion si disponible
+            if (etat->son_explosion) {
+                play_sample(etat->son_explosion, 255, 128, 1000, 0);
+            }
+
+            return; // On sort après la première collision détectée
+                     }
+    }
+}
+
+void gestion_collision_poisson(EtatJeu *etat) {
+    // Position globale du joueur (avec le défilement)
+    int joueur_x = etat->joueur.x + etat->decor_scroll;
+    int joueur_y = etat->joueur.y;
+
+    for (int i = 0; i < NB_POISSON; i++) {
+        // Ignorer les crabes désactivés (position x = 20000)
+
+        const int poissons_w = 60;   // Largeur de la hitbox
+        const int poissons_h = 40;   // Hauteur de la hitbox
+
+        // Position du crabe avec décalage pour centrer la hitbox
+        int poissons_x = etat->poissons[i].x + 20;  // Décalage horizontal
+        int poissons_y = etat->poissons[i].y + 10;  // Décalage vertical
+
+        // Vérification de collision
+        if (collision(joueur_x, joueur_y,
+                     etat->joueur.largeur, etat->joueur.hauteur,
+                     poissons_x, poissons_y,
+                     poissons_w, poissons_h)) {
+
+            // Déclencher la mort du joueur
+            etat->joueur_est_mort = 1;
+            etat->joueur.dx = 0;
+            etat->joueur.dy = 0;
+
+            // Jouer le son d'explosion si disponible
+            if (etat->son_explosion) {
+                play_sample(etat->son_explosion, 255, 128, 1000, 0);
+            }
+
+            return; // On sort après la première collision détectée
+                     }
+    }
+}
+
 void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *menu, SAMPLE* montagne, SAMPLE* mer) {
 
     // Initialisation de l'état du jeu
@@ -762,6 +809,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
     init_jeu(&etat, niveau, pseudo);
     SAMPLE *musique_niveau;
     etat.temps_depart = clock();
+    etat.dernier_cp = -1;
 
     int afficher_vite = 0, vite_collision = 0;
     int vitesse_scroll = DECOR_SCROLL_SPEED;
@@ -834,23 +882,23 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         case NIVEAU_VOLCAN:
             musique_niveau = load_sample("lave.wav");
             // Positions par défaut
-                etat.bonus_pos[0][0][0] = 2500; etat.bonus_pos[0][0][1] = 300;
-        etat.bonus_pos[0][1][0] = 3500; etat.bonus_pos[0][1][1] = 250;
-        etat.bonus_pos[0][2][0] = 4500; etat.bonus_pos[0][2][1] = 350;
+                etat.bonus_pos[0][0][0] = 20000; etat.bonus_pos[0][0][1] = 300;
+        etat.bonus_pos[0][1][0] = 20000; etat.bonus_pos[0][1][1] = 250;
+        etat.bonus_pos[0][2][0] = 20000; etat.bonus_pos[0][2][1] = 350;
 
         // Petit bonus (3 instances)
-        etat.bonus_pos[1][0][0] = 300; etat.bonus_pos[1][0][1] = 200;
-        etat.bonus_pos[1][1][0] = 1500; etat.bonus_pos[1][1][1] = 180;
-        etat.bonus_pos[1][2][0] = 2800; etat.bonus_pos[1][2][1] = 220;
+        etat.bonus_pos[1][0][0] = 20000; etat.bonus_pos[1][0][1] = 200;
+        etat.bonus_pos[1][1][0] = 20000; etat.bonus_pos[1][1][1] = 180;
+        etat.bonus_pos[1][2][0] = 20000; etat.bonus_pos[1][2][1] = 220;
 
         // Vite bonus (3 instances)
-        etat.bonus_pos[2][0][0] = 2000; etat.bonus_pos[2][0][1] = 350;
-        etat.bonus_pos[2][1][0] = 3200; etat.bonus_pos[2][1][1] = 300;
-        etat.bonus_pos[2][2][0] = 5000; etat.bonus_pos[2][2][1] = 280;
+        etat.bonus_pos[2][0][0] = 20000; etat.bonus_pos[2][0][1] = 350;
+        etat.bonus_pos[2][1][0] = 20000; etat.bonus_pos[2][1][1] = 300;
+        etat.bonus_pos[2][2][0] = 20000; etat.bonus_pos[2][2][1] = 280;
 
         etat.bonus_pos[3][0][0] = 20000; etat.bonus_pos[3][0][1] = 350;
-        etat.bonus_pos[3][1][0] = 15200; etat.bonus_pos[3][1][1] = 300;
-        etat.bonus_pos[3][2][0] = 70200; etat.bonus_pos[3][2][1] = 300;
+        etat.bonus_pos[3][1][0] = 20000; etat.bonus_pos[3][1][1] = 300;
+        etat.bonus_pos[3][2][0] = 20000; etat.bonus_pos[3][2][1] = 300;
             break;
     }
 
@@ -922,8 +970,15 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
             }
 
             if ((clock() - temps_mort) >= 1000) {
-                etat.joueur_est_mort = 2;
-                explosion_affichee = 0;
+                if (etat.dernier_cp != -1) {
+                    etat.joueur_est_mort = 2; // Phase de respawn
+                } else {
+                    // Retour au menu après avoir affiché l'explosion
+                    stop_sample(musique_niveau);
+                    stop_sample(lave);
+                    menu_principal(lave, menu, montagne, mer);
+                    return;
+                }
             } else {
                 rest(20);
                 continue;
@@ -939,6 +994,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
                 etat.decor_scroll = etat.checkpoints[etat.dernier_cp].scroll;
                 etat.joueur.dx = etat.joueur.dy = 0;
                 etat.joueur_est_mort = 0;
+                explosion_affichee = 0;
             } else {
                 stop_sample(musique_niveau);  // Arrêt supplémentaire pour être sûr
                 stop_sample(lave);
@@ -953,6 +1009,9 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
 
         // Gestion des collisions avec les roues
         gestion_collision_roues(&etat);
+
+        gestion_collision_crabe(&etat);
+        gestion_collision_poisson(&etat);
 
         // Mise à jour des checkpoints
         maj_checkpoints(&etat);
