@@ -958,8 +958,20 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         maj_checkpoints(&etat);
 
         // Détection de l'arrivée
-        if (detecter_arrivee(&etat)) {
-            break;
+         if (detecter_arrivee(&etat)) {
+            if(niveau == NIVEAU_VOLCAN) {
+                stop_sample(lave);
+                play_sample(montagne, 200, 100, 920, 1);
+                jeu_scrolling(pseudo, NIVEAU_MONTAGNE, lave, menu, montagne, mer);
+            } else if (niveau == NIVEAU_MONTAGNE) {
+                stop_sample(montagne);
+                play_sample(mer, 200, 100, 920, 1);
+                jeu_scrolling(pseudo, NIVEAU_MER, lave, menu, montagne, mer);
+            }else {
+                return;
+
+            }
+            continue;
         }
 
         if (niveau == NIVEAU_MONTAGNE) {
