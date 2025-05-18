@@ -187,10 +187,11 @@ typedef struct {
 } EtatJeu;
 
 
-
 // Ajouter le prototype de fonction
-void gestion_collision_champis(EtatJeu *etat);
-void gestion_collision_lianes(EtatJeu *etat);
+
+// --- Fonctions principales ---
+// --- Fonctions principales ---
+
 
 // Paramètres : aucun
 // Fonctionnement : Initialise tous les composants d'Allegro nécessaires au jeu
@@ -206,6 +207,7 @@ nom du joueur : const char *pseudo
 // Fonctionnement : Initialise un nouveau niveau avec les paramètres donnés
 // return  : void
 void init_jeu(EtatJeu *etat, TypeNiveau niveau, const char *pseudo);
+
 
 // Paramètres :
 /*
@@ -240,6 +242,7 @@ structure d'état du jeu : EtatJeu *etat
 // return  : void
 void charger_ressources_niveau(EtatJeu *etat);
 
+
 // Paramètres :
 /*
 état du jeu à nettoyer : EtatJeu *etat
@@ -258,49 +261,166 @@ void nettoyer_ressources(EtatJeu *etat);
 // Ce que ça renvoie : void
 void afficher_scene(EtatJeu *etat);
 
+
 // --- Gestion du joueur / actions ---
+
+
+// Paramètres :
+/*
+pointeur vers la structure du jeu (EtatJeu *etat)
+*/
+
+// Fonctionnement :
+/*
+Vérifie si une touche est enfoncée.
+Si la barre espace est détectée :
+active l'état de saut du joueur (sprite_state = 1)
+initialise un timer de saut à 10
+applique une force de saut verticale (dy = JUMP_STRENGTH)
+déclenche un effet visuel (traînée)
+joue le son de saut si disponible
+Décrémente le timer de saut à chaque appel
+Une fois le timer expiré, désactive l'état de saut (sprite_state = 0)
+*/
+
+// Effet :
+/*
+modifie l’état du joueur et déclenche un son.
+*/
 void gerer_saut(EtatJeu *etat);
+
+
+// Paramètres :
+/*
+pointeur vers la structure du jeu (EtatJeu *etat)
+*/
+
+// Fonctionnement :
+/*
+Applique la gravité au joueur en augmentant sa vitesse verticale (dy).
+Limite la vitesse de chute pour éviter qu'elle dépasse une valeur maximale.
+Si le joueur a une vitesse horizontale (dx ≠ 0) :
+déplace le joueur horizontalement.
+applique un effet de frottement (réduction progressive de dx).
+si dx devient très faible, il est mis à zéro pour stopper le mouvement.
+*/
+
+// Effet :
+/*
+ modifie la position et les vitesses du joueur.
+*/
 void appliquer_physique(EtatJeu *etat);
+
+
+// Paramètres :
+/*
+pointeur vers la structure du jeu (EtatJeu *etat)
+*/
+
+// Fonctionnement :
+/*
+Teste la possibilité de déplacer le joueur vers la droite (collision horizontale) :
+    Si aucun pixel noir n’est détecté dans la zone future, avance le joueur.
+    Sinon, le repousse vers la gauche jusqu’à sortir de l’obstacle.
+ Teste la possibilité de monter ou descendre selon la vitesse verticale (collision verticale) :
+    Si aucun pixel noir sur le chemin, déplace le joueur verticalement.
+    Sinon, stoppe la vitesse verticale (dy = 0).
+ Applique des limites supplémentaires :
+    Empêche de dépasser le haut ou le bas de l’écran.
+    Empêche de sortir trop à gauche (x < -100).
+*/
+
+// Effet :
+/*
+ajuste dynamiquement la position du joueur en fonction des collisions avec les éléments du décor.
+*/
 void gerer_collisions(EtatJeu *etat);
-void gestion_collision_crabe(EtatJeu *etat);
-void gestion_collision_poisson(EtatJeu *etat);
+
 
 // --- Roues (affichage, animation, collisions) ---
-
-// Paramètres : 
+// Paramètres :
 /*
   - int *etape_roue : pointeur vers la BITMAP actuelle des roues (image de 0 à 3)
   - int *dernier_changement_roue : pointeur vers le temps du dernier changement d'étape
-  - int temps_actuel : temps écoulé depuis le début du jeu 
+  - int temps_actuel : temps écoulé depuis le début du jeu
 */
 // Fonctionnement : Gère l'animation cyclique simple des roues selon le temps
 // return  : void
 void gerer_roues(int *etape_roue, int *dernier_changement_roue, int temps_actuel);
 
-// Paramètres : 
+// Paramètres :
 /*
-  - EtatJeu *etat : pointeur vers l'état actuel du jeu 
+  - EtatJeu *etat : pointeur vers l'état actuel du jeu
 */
 // Fonctionnement : Met à jour l'animation des roues ainsi que leur éventuel mouvement vertical.
 // return  : void
 void maj_roues(EtatJeu *etat);
+
+
 void gestion_collision_roues(EtatJeu *etat);
 
-// Paramètres : 
+// Paramètres :
 /*
-  - Joueur *joueur : pointeur vers la structure du joueur
-  - BITMAP *roue : image de la roue utilisée pour la collision
-  - int roue_x : position X de la roue 
-  - int roue_y : position Y de la roue
-  - int decor_scroll : décalage horizontal actuel du décor (scroll)
+Joueur *joueur : pointeur vers la structure du joueur
+BITMAP *roue : image de la roue utilisée pour la collision
+int roue_x : position X de la roue
+int roue_y : position Y de la roue
+int decor_scroll : décalage horizontal actuel du décor (scroll)
 */
-// Fonctionnement : Vérifie s'il y a une collision entre le joueur et la roue.
-// return  : int (1 s’il y a collision, 0 sinon)
+// Fonctionnement :
+/*Vérifie s'il y a une collision entre le joueur et la roue.*/
+// return  :
+/*int (1 s’il y a collision, 0 sinon)*/
 int verifier_collision_roue(Joueur *joueur, BITMAP *roue, int roue_x, int roue_y, int decor_scroll);
 
 // --- Checkpoints ---
+
+// Paramètres :
+/*
+pointeur vers la structure du jeu (EtatJeu *etat)
+*/
+
+// Fonctionnement :
+/*
+Parcourt tous les checkpoints du jeu.
+Pour chaque checkpoint inactif :
+vérifie si le joueur est dans sa zone (collision AABB via joueur_sur_checkpoint).
+Si le joueur touche un checkpoint :
+enregistre la position du joueur et le scroll courant dans le checkpoint
+active le checkpoint
+met à jour l’indice du dernier checkpoint atteint
+joue un son d’activation si disponible
+*/
+
+// return :
+/*
+Effet :
+met à jour les champs liés aux checkpoints dans l’état du jeu.
+*/
 void maj_checkpoints(EtatJeu *etat);
+
+// Paramètres :
+/*
+pointeur vers la structure du joueur (position, taille) : Joueur *joueur
+coordonnées du checkpoint dans le monde : int cp_x, cp_y
+défilement horizontal du décor : int scroll
+dimensions de la zone du checkpoint :int cp_width, cp_height
+ */
+
+// Fonctionnement :
+/*
+Calcule la boîte englobante (AABB) du joueur.
+Calcule la boîte englobante du checkpoint, ajustée avec le scroll.
+Utilise un test de collision AABB (rectangle contre rectangle).
+Retourne 1 si collision (le joueur est sur le checkpoint), 0 sinon.
+ */
+
+// return :
+/*int  1 si le joueur est dans la zone du checkpoint, 0 sinon.*/
 int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sw, int sh);
+
+
+
 
 // --- Arrivée / victoire ---
 
@@ -312,8 +432,43 @@ int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sw
 // Ce que ça renvoie : 1 si le joueur est arrivé, 0 sinon
 int detecter_arrivee(EtatJeu *etat);
 
-// --- Utilitaire ---
 
+// Gestion de toutes les collisions
+
+// Paramètres d'entrées :
+/*
+Pointeur vers une structure contenant l’état actuel du jeu. Elle inclut :
+La position et la taille du joueur (etat->joueur)
+Le défilement horizontal du décor (etat->decor_scroll)
+La liste des champignons (etat->champis)
+Un indicateur de mort du joueur (etat->joueur_est_mort)
+ */
+
+// Fonctionnement :
+/*
+Calcule la position globale du joueur (avec défilement).
+Parcourt chaque objet.
+Crée une hitbox réduite et centrée pour chaque objet.
+Teste la collision entre la hitbox du joueur et celle de l'objet.
+Si collision : etat->joueur_est_mort est mis à 1 et la fonction s’arrête.
+ */
+
+//Gestion des collisions pour tous les champignons
+void gestion_collision_champis(EtatJeu *etat);
+
+//Gestion des collisions pour tous les lianes
+void gestion_collision_lianes(EtatJeu *etat);
+
+//Gestion des collisions pour tous les crabes
+void gestion_collision_crabe(EtatJeu *etat);
+
+//Gestion des collisions pour tous les poissons
+void gestion_collision_poisson(EtatJeu *etat);
+
+//Gestion des collisions pour tous les roues
+void gestion_collision_roues(EtatJeu *etat);
+
+// --- Utilitaire ---
 // Paramètres :
 /*
 position et taille 1er rectangle : int x1,y1,w1,h1
@@ -373,5 +528,6 @@ pointeur position scroll : int *scroll_cp
 // Fonctionnement : Charge une partie depuis un fichier de sauvegarde
 // Ce que ça renvoie : 1 si succès, 0 si échec
 int charger_partie(const char *pseudo, int *niveau_max_debloque, int *dernier_cp, int *temps_jeu, int *scroll_cp);
+
 
 #endif // BADLAND_H
