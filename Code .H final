@@ -6,7 +6,8 @@
 // --- Constantes globales ---
 #define MY_SCREEN_W 800
 #define MY_SCREEN_H 600
-
+#define FIN_MER_X 9450  // Position X de l'image de fin
+#define FIN_MER_Y 150    // Position Y de l'image de fin
 #define SCENE_WIDTH 13500
 #define DECOR_SCROLL_SPEED 3
 
@@ -103,6 +104,7 @@ typedef struct {
     int positions_crabe[NB_CRABE][2];
     char* trainee_path;
     char* img_petit_path;
+    char* img_fin_path;
     int gros_positions[3][2];  // Jusqu'à 3 bonus "gros"
     int petit_positions[3][2]; // Jusqu'à 3 bonus "petit"
     int vite_positions[3][2];  // Jusqu'à 3 bonus "vite"
@@ -156,6 +158,7 @@ typedef struct {
     BITMAP *img_poisson;
     BITMAP *img_crabe;
     BITMAP *roues[4];
+    BITMAP *img_fin_mer;  // Image de fin du niveau mer
 
 
     // Éléments du jeu
