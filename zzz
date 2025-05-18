@@ -272,6 +272,16 @@ void gerer_roues(int *etape_roue, int *dernier_changement_roue, int temps_actuel
 void maj_roues(EtatJeu *etat);
 void gestion_collision_roues(EtatJeu *etat);
 
+// Paramètres : 
+/*
+  - Joueur *joueur : pointeur vers la structure du joueur
+  - BITMAP *roue : image de la roue utilisée pour la collision
+  - int roue_x : position X de la roue 
+  - int roue_y : position Y de la roue
+  - int decor_scroll : décalage horizontal actuel du décor (scroll)
+*/
+// Fonctionnement : Vérifie s'il y a une collision entre le joueur et la roue.
+// return  : int (1 s’il y a collision, 0 sinon)
 int verifier_collision_roue(Joueur *joueur, BITMAP *roue, int roue_x, int roue_y, int decor_scroll);
 
 // --- Checkpoints ---
