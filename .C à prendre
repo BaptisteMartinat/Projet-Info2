@@ -709,52 +709,64 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
     // --- Positionnement dynamique des bonus selon le niveau ---
     switch (niveau) {
         case NIVEAU_MER:
+            musique_niveau = load_sample("mer.wav");
             // Gros bonus (3 instances)
-        etat.bonus_pos[0][1] = 3500; etat.bonus_pos[1][1] = 250;
-        etat.bonus_pos[2][0] = 4500; etat.bonus_pos[2][1] = 350;
+                etat.bonus_pos[0][0][0] = 2500; etat.bonus_pos[0][0][1] = 300;
+        etat.bonus_pos[0][1][0] = 3500; etat.bonus_pos[0][1][1] = 250;
+        etat.bonus_pos[0][2][0] = 4500; etat.bonus_pos[0][2][1] = 350;
 
         // Petit bonus (3 instances)
-        etat.bonus_pos[1][0] = 300; etat.bonus_pos[1][1] = 200;
-        etat.bonus_pos[1][2] = 2800; etat.bonus_pos[2][1] = 220;
+        etat.bonus_pos[1][0][0] = 300; etat.bonus_pos[1][0][1] = 200;
+        etat.bonus_pos[1][1][0] = 1500; etat.bonus_pos[1][1][1] = 180;
+        etat.bonus_pos[1][2][0] = 2800; etat.bonus_pos[1][2][1] = 220;
 
         // Vite bonus (3 instances)
-        etat.bonus_pos[2][0] = 2000; etat.bonus_pos[2][1] = 350;
-        etat.bonus_pos[1][0] = 3200; etat.bonus_pos[1][1] = 300;
+        etat.bonus_pos[2][0][0] = 2000; etat.bonus_pos[2][0][1] = 350;
+        etat.bonus_pos[2][1][0] = 3200; etat.bonus_pos[2][1][1] = 300;
+        etat.bonus_pos[2][2][0] = 5000; etat.bonus_pos[2][2][1] = 280;
         break;
 
 
         case NIVEAU_MONTAGNE:
-            etat.bonus_pos[0][1] = 3500; etat.bonus_pos[1][1] = 250;
-        etat.bonus_pos[2][0] = 4500; etat.bonus_pos[2][1] = 350;
+            musique_niveau = load_sample("montagne.wav");
+            etat.bonus_pos[0][0][0] = 2500; etat.bonus_pos[0][0][1] = 300;
+        etat.bonus_pos[0][1][0] = 3500; etat.bonus_pos[0][1][1] = 250;
+        etat.bonus_pos[0][2][0] = 4500; etat.bonus_pos[0][2][1] = 350;
 
         // Petit bonus (3 instances)
-        etat.bonus_pos[1][0] = 300; etat.bonus_pos[1][1] = 200;
-        etat.bonus_pos[1][2] = 2800; etat.bonus_pos[2][1] = 220;
+        etat.bonus_pos[1][0][0] = 300; etat.bonus_pos[1][0][1] = 200;
+        etat.bonus_pos[1][1][0] = 1500; etat.bonus_pos[1][1][1] = 180;
+        etat.bonus_pos[1][2][0] = 2800; etat.bonus_pos[1][2][1] = 220;
 
         // Vite bonus (3 instances)
-        etat.bonus_pos[2][0] = 2000; etat.bonus_pos[2][1] = 350;
-        etat.bonus_pos[1][0] = 3200; etat.bonus_pos[1][1] = 300;
+        etat.bonus_pos[2][0][0] = 2000; etat.bonus_pos[2][0][1] = 350;
+        etat.bonus_pos[2][1][0] = 3200; etat.bonus_pos[2][1][1] = 300;
+        etat.bonus_pos[2][2][0] = 5000; etat.bonus_pos[2][2][1] = 280;
             break;
 
-        default:
+        case NIVEAU_VOLCAN:
+            musique_niveau = load_sample("lave.wav");
             // Positions par défaut
-                etat.bonus_pos[0][1] = 3500; etat.bonus_pos[1][1] = 250;
-        etat.bonus_pos[2][0] = 4500; etat.bonus_pos[2][1] = 350;
+                etat.bonus_pos[0][0][0] = 2500; etat.bonus_pos[0][0][1] = 300;
+        etat.bonus_pos[0][1][0] = 3500; etat.bonus_pos[0][1][1] = 250;
+        etat.bonus_pos[0][2][0] = 4500; etat.bonus_pos[0][2][1] = 350;
 
         // Petit bonus (3 instances)
-        etat.bonus_pos[1][0] = 300; etat.bonus_pos[1][1] = 200;
-        etat.bonus_pos[1][2] = 2800; etat.bonus_pos[2][1] = 220;
+        etat.bonus_pos[1][0][0] = 300; etat.bonus_pos[1][0][1] = 200;
+        etat.bonus_pos[1][1][0] = 1500; etat.bonus_pos[1][1][1] = 180;
+        etat.bonus_pos[1][2][0] = 2800; etat.bonus_pos[1][2][1] = 220;
 
         // Vite bonus (3 instances)
-        etat.bonus_pos[2][0] = 2000; etat.bonus_pos[2][1] = 350;
-        etat.bonus_pos[1][0] = 3200; etat.bonus_pos[1][1] = 300;
+        etat.bonus_pos[2][0][0] = 2000; etat.bonus_pos[2][0][1] = 350;
+        etat.bonus_pos[2][1][0] = 3200; etat.bonus_pos[2][1][1] = 300;
+        etat.bonus_pos[2][2][0] = 5000; etat.bonus_pos[2][2][1] = 280;
             break;
     }
 
-    for (int i = 0; i < NB_BONUS; i++) {
+    for (int i = 0; i < NB_BONUS_TYPES; i++) {
         for (int j = 0; j < NB_BONUS_PAR_TYPE; j++) {
-            etat.bonus_actifs[i] = 1;
-            etat.bonus_collision[i] = 0;
+            etat.bonus_actifs[i][j] = 1;
+            etat.bonus_collision[i][j] = 0;
         }
     }
 
@@ -894,33 +906,29 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         if (temps_actuel >= 1) afficher_petit = 1;
         if (temps_actuel >= 1) afficher_vite = 1;
 
-        // Remplacer les conditions de collision par :
-        for (int i = 0; i < NB_BONUS; i++) {
-            for (int j = 0; j < NB_BONUS_PAR_TYPE; j++) {
-                if (etat.bonus_actifs[i] && !etat.bonus_collision[i]) {
-                    int x_ecran = etat.bonus_pos[i][j] - etat.decor_scroll;
+        for (int type = 0; type < NB_BONUS_TYPES; type++) {
+            for (int instance = 0; instance < NB_BONUS_PAR_TYPE; instance++) {
+                if (etat.bonus_actifs[type][instance] && !etat.bonus_collision[type][instance]) {
+                    int x_ecran = etat.bonus_pos[type][instance][0] - etat.decor_scroll;
+                    int y_pos = etat.bonus_pos[type][instance][1];
+
                     if (collision(etat.joueur.x, etat.joueur.y,
                                  etat.joueur.largeur, etat.joueur.hauteur,
-                                 x_ecran, etat.bonus_pos[i][j],
-                                 etat.img_bonus[i]->w, etat.img_bonus[i]->h)) {
-                        etat.bonus_collision[i] = 1;
+                                 x_ecran, y_pos,
+                                 etat.img_bonus[type]->w, etat.img_bonus[type]->h)) {
+                        etat.bonus_collision[type][instance] = 1;
 
-                        // Appliquer l'effet du bonus
-                        switch (i) {
-                            case 0: // Gros
-                                etat.facteur_perso = 1.5f;
-                            break;
-                            case 1: // Petit
-                                etat.facteur_perso = 0.6f;
-                            break;
+                        // Appliquer l'effet
+                        switch (type) {
+                            case 0: etat.facteur_perso = 1.5f; break; // Gros
+                            case 1: etat.facteur_perso = 0.6f; break; // Petit
                             case 2: // Vite
                                 vitesse_scroll = DECOR_SCROLL_SPEED * 3;
                             temps_bonus_vite = clock();
                             break;
                         }
 
-                        // Mettre à jour la taille du joueur si nécessaire
-                        if (i == 0 || i == 1) {
+                        if (type == 0 || type == 1) {
                             etat.joueur.largeur = 40 * etat.facteur_perso;
                             etat.joueur.hauteur = 40 * etat.facteur_perso;
                         }
@@ -928,12 +936,18 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
                 }
             }
         }
-
         // Fin effet bonus "vite" après 6 secondes
         if (afficher_vite && ((clock() - temps_bonus_vite) > 10000)) {
             vitesse_scroll = DECOR_SCROLL_SPEED;
             afficher_vite = 0;
-            etat.bonus_collision[2] = 0;
+
+            // Réactiver l'instance du bonus "vite" qui avait été collectée
+            for (int instance = 0; instance < NB_BONUS_PAR_TYPE; instance++) {
+                if (etat.bonus_collision[2][instance]) {
+                    etat.bonus_collision[2][instance] = 0;
+                    break;
+                }
+            }
         }
 
         // Mise à jour du défilement horizontal
@@ -943,12 +957,12 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         afficher_scene(&etat);
 
         // Remplacer la boucle d'affichage des bonus par :
-        for (int i = 0; i < NB_BONUS; i++) {
-            for (int j = 0; j < NB_BONUS_PAR_TYPE; j++) {
-                if (etat.bonus_actifs[i] && !etat.bonus_collision[i]) {
-                    draw_sprite(etat.page, etat.img_bonus[i],
-                                etat.bonus_pos[i][j] - etat.decor_scroll,
-                                etat.bonus_pos[i][j]);
+        for (int type = 0; type < NB_BONUS_TYPES; type++) {
+            for (int instance = 0; instance < NB_BONUS_PAR_TYPE; instance++) {
+                if (etat.bonus_actifs[type][instance] && !etat.bonus_collision[type][instance]) {
+                    int x_ecran = etat.bonus_pos[type][instance][0] - etat.decor_scroll;
+                    int y_pos = etat.bonus_pos[type][instance][1];
+                    draw_sprite(etat.page, etat.img_bonus[type], x_ecran, y_pos);
                 }
             }
         }
