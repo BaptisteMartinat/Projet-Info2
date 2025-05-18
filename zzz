@@ -3,32 +3,32 @@
 
 #include <allegro.h>
 #include <math.h>
-// --- Constantes globales ---
-#define MY_SCREEN_W 800
-#define MY_SCREEN_H 600
-#define FIN_MER_X 9450  // Position X de l'image de fin
-#define FIN_MER_Y 150    // Position Y de l'image de fin
-#define SCENE_WIDTH 13500
-#define DECOR_SCROLL_SPEED 3
 
-#define GRAVITY 1
-#define JUMP_STRENGTH -11
-#define NB_CHAMPI 4
-#define NB_LIANE 4
-#define MAX_NAME_LENGTH 30
-#define SAVE_FILE "save.txt"
-#define NB_CHECKPOINTS 4
-#define NB_ROUES 5  // Modifier la valeur existante
-#define NB_BONUS_TYPES 4  // Gros, Petit, Vite
-#define NB_BONUS_PAR_TYPE 3  // Nombre d'instances de chaque type
-#define NB_POISSON 4
-#define NB_CRABE 7
+#define MY_SCREEN_W 800       // Largeur fenêtre
+#define MY_SCREEN_H 600       // Hauteur fenêtre
+#define FIN_MER_X 9450        // Position X fin du niveau mer
+#define FIN_MER_Y 150         // Position Y fin du niveau mer
+#define SCENE_WIDTH 13500     // Largeur totale du niveau
+#define DECOR_SCROLL_SPEED 3  // Vitesse de défilement par défaut
 
-#define COLLISION_RADIUS 18
-SAMPLE* charger_musique(const char* path);
+#define GRAVITY 1             // Force de gravité
+#define JUMP_STRENGTH -11     // Puissance de saut
+#define NB_CHAMPI 4           // Nombre de champignons
+#define NB_LIANE 4            // Nombre de lianes
+#define MAX_NAME_LENGTH 30    // Taille max nom joueur
+#define SAVE_FILE "save.txt"  // Fichier de sauvegarde
+#define NB_CHECKPOINTS 4      // Nombre de checkpoints
+#define NB_ROUES 5           // Nombre de roues/enemies
+#define NB_BONUS_TYPES 4     // Types de bonus (Gros, Petit, Vite, Invincible)
+#define NB_BONUS_PAR_TYPE 3  // Instances de chaque bonus
+#define NB_POISSON 4         // Nombre de poissons ennemis
+#define NB_CRABE 7           // Nombre de crabes ennemis
 
-// --- Structures ---
-// Types de niveaux
+#define COLLISION_RADIUS 18   // Rayon de collision
+
+
+
+// Enumération des types de niveaux
 typedef enum {
     NIVEAU_VOLCAN,
     NIVEAU_MONTAGNE,
@@ -36,166 +36,156 @@ typedef enum {
     NB_NIVEAUX
 } TypeNiveau;
 
-// --- Structures ---
+// Structure du joueur principal
 typedef struct {
-    int x, y;
-    int dx, dy;
-    int largeur, hauteur;
-    char nom[MAX_NAME_LENGTH];
-    int niveau; // TypeNiveau
-    int bonus_vite_actif;  // Nouveau: état du bonus vitesse
-    int sprite_state; // 0=normal, 1=saut
+    int x, y;                 // Position
+    int dx, dy;               // Vitesse
+    int largeur, hauteur;     // Dimensions
+    char nom[MAX_NAME_LENGTH];// Nom du joueur
+    int niveau;               // Niveau actuel (TypeNiveau)
+    int bonus_vite_actif;     // Bonus vitesse activé
+    int sprite_state;         // État sprite (0=normal, 1=saut)
 } Joueur;
 
-
+// Structure pour les roues/enemies animés
 typedef struct {
-    int x, y;
-    int frame;
-    int sens_vertical; // 1 = descend, -1 = monte
-    int limite_haut;
-    int limite_bas;
+    int x, y;                // Position
+    int frame;               // Frame d'animation
+    int sens_vertical;       // Direction (1=descend, -1=monte)
+    int limite_haut;         // Limite haute
+    int limite_bas;          // Limite basse
 } Roue;
 
+// Structure pour les checkpoints
 typedef struct {
-    int x, y, scroll;
-    int actif;
+    int x, y, scroll;        // Position
+    int actif;               // Activation
 } Checkpoint;
 
+// Structures simples pour les éléments interactifs
+typedef struct { int x, y, scroll; } champi;   // Champignons
+typedef struct { int x, y, scroll; } liane;    // Lianes
+typedef struct { int x, y, scroll; } poisson;  // Poissons ennemis
+typedef struct { int x, y, scroll; } crabe;    // Crabes ennemis
 
-
+// Structure des ressources graphiques par niveau
 typedef struct {
-    int x, y, scroll;
+    // Chemins des assets
+    char* fond_path;           // Fond du niveau
+    char* collision_path;      // Carte de collision
+    char* sprite1_path;        // Sprite joueur normal
+    char* sprite2_path;        // Sprite joueur saut
+    char* img_vite_path;       // Bonus vitesse
+    char* img_gros_path;      // Bonus taille gros
+    char* explosion_path;      // Animation explosion
+    char* champi_path;         // Sprite champignon
+    char* liane_path;          // Sprite liane
+    char* poisson_path;        // Sprite poisson
+    char* crabe_path;          // Sprite crabe
+    char* img_invincible_path; // Bonus invincibilité
+    char* trainee_path;        // Effet de traînée
+    char* img_petit_path;      // Bonus taille petit
+    char* img_fin_path;        // Image de fin de niveau
 
-} champi;
+    // Positions des éléments
+    int positions_champi[NB_CHAMPI][2];  // Positions champignons
+    int positions_liane[NB_LIANE][2];    // Positions lianes
+    int positions_poisson[NB_POISSON][2];// Positions poissons
+    int positions_crabe[NB_CRABE][2];    // Positions crabes
 
-typedef struct {
-    int x, y, scroll;
+    // Positions des bonus
+    int gros_positions[3][2];   // Positions bonus gros
+    int petit_positions[3][2];  // Positions bonus petit
+    int vite_positions[3][2];   // Positions bonus vitesse
 
-} liane;
+    // Quantités réelles
+    int nb_gros;                // Nombre de bonus gros
+    int nb_petit;               // Nombre de bonus petit
+    int nb_vite;                // Nombre de bonus vitesse
 
-typedef struct {
-    int x, y, scroll;
+    // Autres ressources
+    char* roues_paths[4];       // Sprites des roues
+    char* checkpoint_path;      // Sprite checkpoint
+    char* musique_path;         // Musique du niveau
 
-} poisson;
-
-typedef struct {
-    int x, y, scroll;
-
-} crabe;
-
-
-
-typedef struct {
-    char* fond_path;
-    char* collision_path;
-    char* sprite1_path;
-    char* sprite2_path;
-    char* img_vite_path;
-    char* img_gros_path;
-    char* explosion_path;
-    char* champi_path;
-    char* liane_path;
-    char* poisson_path;
-    char* crabe_path;
-    char* img_invincible_path;
-    int positions_champi[NB_CHAMPI][2];
-    int positions_liane[NB_LIANE][2];
-    int positions_poisson[NB_POISSON][2];
-    int positions_crabe[NB_CRABE][2];
-    char* trainee_path;
-    char* img_petit_path;
-    char* img_fin_path;
-    int gros_positions[3][2];  // Jusqu'à 3 bonus "gros"
-    int petit_positions[3][2]; // Jusqu'à 3 bonus "petit"
-    int vite_positions[3][2];  // Jusqu'à 3 bonus "vite"
-    int nb_gros;               // Nombre réel de bonus "gros" dans ce niveau
-    int nb_petit;              // Nombre réel de bonus "petit"
-    int nb_vite;               // Nombre réel de bonus "vite"
-    char* roues_paths[4];
-    char* checkpoint_path;
-    char* musique_path;
-    int positions_cp[NB_CHECKPOINTS][2];
-    Roue roues_positions[NB_ROUES];
+    // Positions
+    int positions_cp[NB_CHECKPOINTS][2];  // Positions checkpoints
+    Roue roues_positions[NB_ROUES];       // Positions roues
 } NiveauRessources;
 
+// Structure pour les bonus
 typedef struct {
-    int x, y;
-    int actif;
-    int type; // 0=gros, 1=petit, 2=vite
+    int x, y;        // Position
+    int actif;       // Activation
+    int type;        // Type (0=gros, 1=petit, 2=vite)
 } Bonus;
 
-#define MAX_BONUS 10 // Nombre maximum de bonus par niveau
+#define MAX_BONUS 10  // Nombre max de bonus par niveau
 
-
+// État global du jeu
 typedef struct {
-    Joueur joueur;
-    TypeNiveau niveau_actuel;
-    int decor_scroll;
-    int temps_jeu;
-    int dernier_cp;
-    int joueur_est_mort;
-    int positions_cp[NB_CHECKPOINTS][2];
-    int position_champi[NB_CHAMPI][2];
-    int position_liane[NB_LIANE][2];
-    int position_poisson[NB_POISSON][2];
-    int position_crabe[NB_CRABE][2];
-    int timer_saut;
-    int temps_trainee;
-    int temps_depart;
+    Joueur joueur;                 // Données joueur
+    TypeNiveau niveau_actuel;      // Niveau courant
+    int decor_scroll;              // Position défilement
+    int temps_jeu;                 // Chrono jeu
+    int dernier_cp;                // Dernier checkpoint
+    int joueur_est_mort;           // État vie/mort
+    int positions_cp[NB_CHECKPOINTS][2];  // Positions checkpoints
+    int position_champi[NB_CHAMPI][2];    // Positions champignons
+    int position_liane[NB_LIANE][2];      // Positions lianes
+    int position_poisson[NB_POISSON][2];  // Positions poissons
+    int position_crabe[NB_CRABE][2];      // Positions crabes
+    int timer_saut;                // Compteur saut
+    int temps_trainee;             // Compteur traînée
+    int temps_depart;              // Temps départ niveau
 
-
-    // Ressources graphiques
-    BITMAP *fond;
-    BITMAP *page;
-    BITMAP *collision_map;
-    BITMAP *sprite_joueur[2]; // 0=normal, 1=saut
-    BITMAP *img_bonus[4]; // 0=gros, 1=petit, 2=vite
-    BITMAP *img_explosion;
-    BITMAP *img_trainee;
-    BITMAP *img_checkpoint;
-    BITMAP *img_champi;
-    BITMAP *img_liane;
-    BITMAP *img_poisson;
-    BITMAP *img_crabe;
-    BITMAP *roues[4];
-    BITMAP *img_fin_mer;  // Image de fin du niveau mer
-
+    // Ressources graphiques chargées
+    BITMAP *fond;                  // Fond du niveau
+    BITMAP *page;                  // Buffer d'affichage
+    BITMAP *collision_map;         // Carte collisions
+    BITMAP *sprite_joueur[2];      // Sprites joueur
+    BITMAP *img_bonus[4];          // Sprites bonus
+    BITMAP *img_explosion;         // Sprite explosion
+    BITMAP *img_trainee;           // Effet traînée
+    BITMAP *img_checkpoint;        // Sprite checkpoint
+    BITMAP *img_champi;            // Sprite champignon
+    BITMAP *img_liane;             // Sprite liane
+    BITMAP *img_poisson;           // Sprite poisson
+    BITMAP *img_crabe;             // Sprite crabe
+    BITMAP *roues[4];              // Sprites roues
+    BITMAP *img_fin_mer;           // Image fin niveau mer
 
     // Éléments du jeu
-    int timer_roues;
-    Roue roues_struct[NB_ROUES];
-
-    Checkpoint checkpoints[NB_CHECKPOINTS];
-    champi champis[NB_CHAMPI];
-    liane lianes[NB_LIANE];
-    poisson poissons[NB_POISSON];
-    crabe crabes[NB_CRABE];
+    int timer_roues;               // Animation roues
+    Roue roues_struct[NB_ROUES];   // Instances roues
+    Checkpoint checkpoints[NB_CHECKPOINTS];  // Checkpoints
+    champi champis[NB_CHAMPI];               // Champignons
+    liane lianes[NB_LIANE];                  // Lianes
+    poisson poissons[NB_POISSON];            // Poissons
+    crabe crabes[NB_CRABE];                  // Crabes
 
     // Sons
-    SAMPLE *musique_niveau;
-    SAMPLE *son_saut;
-    SAMPLE *son_explosion;
-    SAMPLE *musique_menu;
-    SAMPLE *musique_jeu;
-    SAMPLE *son_checkpoint;
+    SAMPLE *musique_niveau;        // Musique niveau
+    SAMPLE *son_saut;              // Son saut
+    SAMPLE *son_explosion;         // Son explosion
+    SAMPLE *musique_menu;          // Musique menu
+    SAMPLE *musique_jeu;           // Musique jeu
+    SAMPLE *son_checkpoint;        // Son checkpoint
 
-
-    // État des bonus
-    float facteur_perso; // Facteur de taille (0.8 pour petit, 1.5 pour gros)
-    int temps_bonus[3];
-
-    int bonus_pos[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE][2];  // Positions [type][instance][x/y]
-    int bonus_actifs[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE];  // Activation
-    int bonus_collision[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE]; // Collision
-    int temps_bonus_vite;
-    int vitesse_scroll;
-    Bonus bonus[MAX_BONUS];
-    int nb_bonus;
-    int invincible_aux_lianes;  // 1 = invincible, 0 = vulnérable
-    int temps_invincible_lianes; // Durée restante
-
-
+    // Gestion des bonus
+    float facteur_perso;           // Facteur taille (0.6-1.5)
+    int temps_bonus[3];            // Durée restante bonus
+    int bonus_pos[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE][2];  // Positions
+    int bonus_actifs[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE];  // États
+    int bonus_collision[NB_BONUS_TYPES][NB_BONUS_PAR_TYPE]; // Collisions des bonus
+    int temps_bonus_vite;          // Durée bonus vitesse
+    int vitesse_scroll;            // Vitesse défilement
+    Bonus bonus[MAX_BONUS];        // Liste bonus
+    int nb_bonus;                  // Nombre bonus actifs
+    int invincible_aux_lianes;     // Invincibilité lianes
+    int temps_invincible_lianes;   // Durée invincibilité
 } EtatJeu;
+
 
 
 // Ajouter le prototype de fonction
