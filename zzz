@@ -190,8 +190,6 @@ typedef struct {
 // Ajouter le prototype de fonction
 
 // --- Fonctions principales ---
-// --- Fonctions principales ---
-
 
 // Paramètres : aucun
 // Fonctionnement : Initialise tous les composants d'Allegro nécessaires au jeu
@@ -236,7 +234,7 @@ void menu_principal(SAMPLE *lave, SAMPLE *menu, SAMPLE* montagne, SAMPLE* mer);
 
 // Paramètres :
 /*
-structure d'état du jeu : EtatJeu *etat
+pointeur vers la structure du jeu (EtatJeu *etat)
 */
 // Fonctionnement : Charge toutes les ressources graphiques et sonores du niveau actuel
 // return  : void
@@ -245,7 +243,7 @@ void charger_ressources_niveau(EtatJeu *etat);
 
 // Paramètres :
 /*
-état du jeu à nettoyer : EtatJeu *etat
+pointeur vers la structure du jeu (EtatJeu *etat)
 */
 // Fonctionnement : Libère toutes les ressources mémoire allouées (graphiques, sons, etc.)
 // Ce que ça renvoie : void
@@ -255,7 +253,7 @@ void nettoyer_ressources(EtatJeu *etat);
 
 // Paramètres :
 /*
-état du jeu à afficher : EtatJeu *etat
+pointeur vers la structure du jeu (EtatJeu *etat)
 */
 // Fonctionnement : Affiche l'ensemble des éléments graphiques de la scène de jeu
 // Ce que ça renvoie : void
@@ -336,28 +334,28 @@ ajuste dynamiquement la position du joueur en fonction des collisions avec les �
 */
 void gerer_collisions(EtatJeu *etat);
 
+// ---ROUE---
 
-// --- Roues (affichage, animation, collisions) ---
 // Paramètres :
 /*
-  - int *etape_roue : pointeur vers la BITMAP actuelle des roues (image de 0 à 3)
-  - int *dernier_changement_roue : pointeur vers le temps du dernier changement d'étape
-  - int temps_actuel : temps écoulé depuis le début du jeu
+int *etape_roue : pointeur vers la BITMAP actuelle des roues (image de 0 à 3)
+int *dernier_changement_roue : pointeur vers le temps du dernier changement d'étape
+int temps_actuel : temps écoulé depuis le début du jeu
 */
-// Fonctionnement : Gère l'animation cyclique simple des roues selon le temps
+// Fonctionnement :
+/*Gère l'animation cyclique simple des roues selon le temps*/
 // return  : void
 void gerer_roues(int *etape_roue, int *dernier_changement_roue, int temps_actuel);
 
 // Paramètres :
 /*
-  - EtatJeu *etat : pointeur vers l'état actuel du jeu
+pointeur vers la structure du jeu (EtatJeu *etat)
 */
 // Fonctionnement : Met à jour l'animation des roues ainsi que leur éventuel mouvement vertical.
 // return  : void
 void maj_roues(EtatJeu *etat);
 
 
-void gestion_collision_roues(EtatJeu *etat);
 
 // Paramètres :
 /*
@@ -373,7 +371,9 @@ int decor_scroll : décalage horizontal actuel du décor (scroll)
 /*int (1 s’il y a collision, 0 sinon)*/
 int verifier_collision_roue(Joueur *joueur, BITMAP *roue, int roue_x, int roue_y, int decor_scroll);
 
-// --- Checkpoints ---
+
+
+// --- CHECKPOINT ---
 
 // Paramètres :
 /*
@@ -467,6 +467,9 @@ void gestion_collision_poisson(EtatJeu *etat);
 
 //Gestion des collisions pour tous les roues
 void gestion_collision_roues(EtatJeu *etat);
+
+
+
 
 // --- Utilitaire ---
 // Paramètres :
