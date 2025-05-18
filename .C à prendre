@@ -655,7 +655,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .champi_path = "champignon.bmp",
         .liane_path = "liane.bmp",
         .positions_champi = {{2058, 416}, {4524, 456}, {6400, 334}, {8420, 340}},
-        .positions_liane = {{680, 125}, {4015, 126}, {6650, 112}, {7120, 130}},
+        .positions_liane = {{680, 125}, {4015, 126}, {6650, 112}, {8120, 130}},
         .musique_path = "montagne.wav",
         .img_gros_path = "gros.bmp",
         .img_petit_path = "petit.bmp",
