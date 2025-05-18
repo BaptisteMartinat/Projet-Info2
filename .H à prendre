@@ -20,7 +20,7 @@
 #define NB_ROUES 5  // Modifier la valeur existante
 #define NB_BONUS_TYPES 4  // Gros, Petit, Vite
 #define NB_BONUS_PAR_TYPE 3  // Nombre d'instances de chaque type
-#define NB_POISSON 4
+#define NB_POISSON 7
 #define NB_CRABE 4
 
 #define COLLISION_RADIUS 18
