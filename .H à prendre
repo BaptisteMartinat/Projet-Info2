@@ -19,6 +19,7 @@
 #define NB_CHECKPOINTS 4
 #define NB_ROUES 5  // Modifier la valeur existante
 #define NB_BONUS 5
+#define NB_BONUS_PAR_TYPE 3
 
 
 #define COLLISION_RADIUS 18
