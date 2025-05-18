@@ -1,0 +1,35 @@
+#include "Badland.h"
+
+int main() {
+    initialisation_allegro();
+    install_mouse();
+    show_mouse(screen);
+    srand(time(NULL));
+
+
+    SAMPLE *lave = load_sample("lave.wav");
+    if (!lave) {
+        allegro_message("Erreur chargement du son !");
+        return 1;
+    }
+
+    SAMPLE *menu = load_sample("menu.wav");
+    if (!menu) {
+        allegro_message("Erreur chargement du son !");
+        return 1;
+    }
+
+    SAMPLE *montagne = load_sample("montagne.wav");
+    if (!montagne) {
+        allegro_message("Erreur chargement du son !");
+        return 1;
+    }
+
+    menu_principal(lave, menu, montagne);
+
+    allegro_exit();
+    destroy_sample(lave);
+    destroy_sample(menu);
+    return 0;
+}
+END_OF_MAIN();
