@@ -882,23 +882,23 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         case NIVEAU_VOLCAN:
             musique_niveau = load_sample("lave.wav");
             // Positions par défaut
-                etat.bonus_pos[0][0][0] = 2500; etat.bonus_pos[0][0][1] = 300;
-        etat.bonus_pos[0][1][0] = 3500; etat.bonus_pos[0][1][1] = 250;
-        etat.bonus_pos[0][2][0] = 4500; etat.bonus_pos[0][2][1] = 350;
+                etat.bonus_pos[0][0][0] = 20000; etat.bonus_pos[0][0][1] = 300;
+        etat.bonus_pos[0][1][0] = 20000; etat.bonus_pos[0][1][1] = 250;
+        etat.bonus_pos[0][2][0] = 20000; etat.bonus_pos[0][2][1] = 350;
 
         // Petit bonus (3 instances)
-        etat.bonus_pos[1][0][0] = 300; etat.bonus_pos[1][0][1] = 200;
-        etat.bonus_pos[1][1][0] = 1500; etat.bonus_pos[1][1][1] = 180;
-        etat.bonus_pos[1][2][0] = 2800; etat.bonus_pos[1][2][1] = 220;
+        etat.bonus_pos[1][0][0] = 20000; etat.bonus_pos[1][0][1] = 200;
+        etat.bonus_pos[1][1][0] = 20000; etat.bonus_pos[1][1][1] = 180;
+        etat.bonus_pos[1][2][0] = 20000; etat.bonus_pos[1][2][1] = 220;
 
         // Vite bonus (3 instances)
-        etat.bonus_pos[2][0][0] = 2000; etat.bonus_pos[2][0][1] = 350;
-        etat.bonus_pos[2][1][0] = 3200; etat.bonus_pos[2][1][1] = 300;
-        etat.bonus_pos[2][2][0] = 5000; etat.bonus_pos[2][2][1] = 280;
+        etat.bonus_pos[2][0][0] = 20000; etat.bonus_pos[2][0][1] = 350;
+        etat.bonus_pos[2][1][0] = 20000; etat.bonus_pos[2][1][1] = 300;
+        etat.bonus_pos[2][2][0] = 20000; etat.bonus_pos[2][2][1] = 280;
 
         etat.bonus_pos[3][0][0] = 20000; etat.bonus_pos[3][0][1] = 350;
-        etat.bonus_pos[3][1][0] = 15200; etat.bonus_pos[3][1][1] = 300;
-        etat.bonus_pos[3][2][0] = 70200; etat.bonus_pos[3][2][1] = 300;
+        etat.bonus_pos[3][1][0] = 20000; etat.bonus_pos[3][1][1] = 300;
+        etat.bonus_pos[3][2][0] = 20000; etat.bonus_pos[3][2][1] = 300;
             break;
     }
 
