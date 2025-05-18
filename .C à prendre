@@ -732,7 +732,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_liane = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_poisson = {{760, 230}, {3250, 300}, {5800, 100}, {7500, 270}},
-        .positions_crabe = {{1220, 270}, {3450, 165}, {3750, 345}, {4250, 165}, {4850, 160}, {4850, 300}, {8100, 135}},
+        .positions_crabe = {{1220, 270}, {3450, 165}, {3750, 325}, {4250, 165}, {4850, 160}, {4850, 410}, {8100, 135}},
         .musique_path = "mer.wav",
         .explosion_path = "explosion_mer.bmp",
         .trainee_path = "saut3.bmp",
