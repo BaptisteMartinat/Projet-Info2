@@ -873,7 +873,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, int niveau_max_debloqu
         case NIVEAU_MONTAGNE:
             musique_niveau = load_sample("montagne.wav");
             etat.bonus_pos[0][0][0] = 500; etat.bonus_pos[0][0][1] = 300;
-        etat.bonus_pos[0][1][0] = 2200; etat.bonus_pos[0][1][1] = 250;
+        etat.bonus_pos[0][1][0] = 2100; etat.bonus_pos[0][1][1] = 250;
         etat.bonus_pos[0][2][0] = 4800; etat.bonus_pos[0][2][1] = 300;
 
         etat.bonus_pos[1][0][0] = 700; etat.bonus_pos[1][0][1] = 350;
