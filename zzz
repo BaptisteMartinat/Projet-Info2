@@ -303,6 +303,13 @@ void maj_checkpoints(EtatJeu *etat);
 int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int sw, int sh);
 
 // --- Arrivée / victoire ---
+
+// Paramètres :
+/*
+état du jeu : EtatJeu *etat
+*/
+// Fonctionnement : Vérifie si le joueur a atteint la zone d'arrivée/objectif
+// Ce que ça renvoie : 1 si le joueur est arrivé, 0 sinon
 int detecter_arrivee(EtatJeu *etat);
 
 // --- Utilitaire ---
