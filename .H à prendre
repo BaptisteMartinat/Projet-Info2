@@ -20,7 +20,8 @@
 #define NB_ROUES 5  // Modifier la valeur existante
 #define NB_BONUS_TYPES 4  // Gros, Petit, Vite
 #define NB_BONUS_PAR_TYPE 3  // Nombre d'instances de chaque type
-
+#define NB_POISSON 4
+#define NB_CRABE 4
 
 #define COLLISION_RADIUS 18
 SAMPLE* charger_musique(const char* path);
@@ -71,6 +72,16 @@ typedef struct {
 
 } liane;
 
+typedef struct {
+    int x, y, scroll;
+
+} poisson;
+
+typedef struct {
+    int x, y, scroll;
+
+} crabe;
+
 
 
 typedef struct {
@@ -83,9 +94,13 @@ typedef struct {
     char* explosion_path;
     char* champi_path;
     char* liane_path;
+    char* poisson_path;
+    char* crabe_path;
     char* img_invincible_path;
     int positions_champi[NB_CHAMPI][2];
     int positions_liane[NB_LIANE][2];
+    int positions_poisson[NB_POISSON][2];
+    int positions_crabe[NB_CRABE][2];
     char* trainee_path;
     char* img_petit_path;
     int gros_positions[3][2];  // Jusqu'à 3 bonus "gros"
@@ -120,6 +135,8 @@ typedef struct {
     int positions_cp[NB_CHECKPOINTS][2];
     int position_champi[NB_CHAMPI][2];
     int position_liane[NB_LIANE][2];
+    int position_poisson[NB_POISSON][2];
+    int position_crabe[NB_CRABE][2];
     int timer_saut;
     int temps_trainee;
     int temps_depart;
@@ -136,7 +153,10 @@ typedef struct {
     BITMAP *img_checkpoint;
     BITMAP *img_champi;
     BITMAP *img_liane;
+    BITMAP *img_poisson;
+    BITMAP *img_crabe;
     BITMAP *roues[4];
+
 
     // Éléments du jeu
     int timer_roues;
@@ -145,6 +165,9 @@ typedef struct {
     Checkpoint checkpoints[NB_CHECKPOINTS];
     champi champis[NB_CHAMPI];
     liane lianes[NB_LIANE];
+    poisson poissons[NB_POISSON];
+    crabe crabes[NB_CRABE];
+
     // Sons
     SAMPLE *musique_niveau;
     SAMPLE *son_saut;
