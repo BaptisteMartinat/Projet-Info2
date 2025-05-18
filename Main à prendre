@@ -25,7 +25,13 @@ int main() {
         return 1;
     }
 
-    menu_principal(lave, menu, montagne);
+    SAMPLE *mer = load_sample("mer.wav");
+    if (!mer) {
+        allegro_message("Erreur chargement du son !");
+        return 1;
+    }
+
+    menu_principal(lave, menu, montagne, mer);
 
     allegro_exit();
     destroy_sample(lave);
