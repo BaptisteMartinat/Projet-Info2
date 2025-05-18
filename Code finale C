@@ -1,0 +1,1730 @@
+#include "Badland.h"
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+
+static SAMPLE *musique_actuelle = NULL;
+
+void initialisation_allegro() {
+    allegro_init();
+    install_keyboard();
+    install_mouse();
+    install_sound(DIGI_AUTODETECT, MIDI_AUTODETECT, NULL);  // Initialisation audio
+    set_color_depth(desktop_color_depth());
+    if (set_gfx_mode(GFX_AUTODETECT_WINDOWED, MY_SCREEN_W, MY_SCREEN_H, 0, 0) != 0) {
+        allegro_message("Problème mode graphique");
+        exit(EXIT_FAILURE);
+    }
+    set_trans_blender(0, 0, 0, 128);
+}
+
+
+
+void arreter_musique() {
+    if (musique_actuelle) {
+        stop_sample(musique_actuelle);
+        musique_actuelle = NULL;
+    }
+}
+
+
+
+void init_jeu(EtatJeu *etat, TypeNiveau niveau,const char *pseudo) {
+    memset(etat->bonus_collision, 0, sizeof(etat->bonus_collision));
+    memset(etat, 0, sizeof(EtatJeu));
+    etat->niveau_actuel = niveau;
+    etat->page = NULL;
+
+    // Initialisation du joueur
+    etat->joueur.x = 100;
+    etat->joueur.y = MY_SCREEN_H / 2;
+    etat->joueur.largeur = 40;
+    etat->joueur.hauteur = 40;
+    strcpy(etat->joueur.nom, "Joueur");
+    etat->joueur.niveau = niveau;
+}
+
+
+
+
+int detecter_arrivee(EtatJeu *etat) {
+    const int rayon = COLLISION_RADIUS; // Utilisation de la constante définie
+    const int cx = etat->joueur.x + etat->joueur.largeur/2; // Centre X du joueur
+    const int cy = etat->joueur.y + etat->joueur.hauteur/2; // Centre Y du joueur
+
+    if (etat->niveau_actuel == NIVEAU_MER) {
+        int fin_x = FIN_MER_X - etat->decor_scroll;
+        int fin_y = FIN_MER_Y;
+        int fin_w = etat->img_fin_mer ? etat->img_fin_mer->w : 100;
+        int fin_h = etat->img_fin_mer ? etat->img_fin_mer->h : 100;
+
+        if (collision(etat->joueur.x, etat->joueur.y,
+                     etat->joueur.largeur, etat->joueur.hauteur,
+                     fin_x, fin_y,
+                     fin_w, fin_h)) {
+            return 1;  // Fin du niveau détectée
+                     }
+    }
+
+    for (int dx = -rayon; dx <= rayon; dx++) {
+        for (int dy = -rayon; dy <= rayon; dy++) {
+            // Vérification si dans le cercle de collision
+            if (dx * dx + dy * dy <= rayon * rayon) {
+                // Position dans la map globale
+                int x = cx + dx + etat->decor_scroll;
+                int y = cy + dy;
+
+                // Vérification des limites de l'image
+                if (x >= 0 && x < etat->collision_map->w &&
+                    y >= 0 && y < etat->collision_map->h) {
+
+                    // Détection de la couleur verte (arrivée)
+                    if (getpixel(etat->collision_map, x, y) == makecol(0, 255, 0)) {
+                        return 1; // Arrivée détectée
+                    }
+                    }
+            }
+        }
+    }
+    return 0; // Pas d'arrivée détectée
+}
+
+// 3. Animation des roues
+void maj_roues(EtatJeu *etat) {
+    // Incrémentation du timer des roues
+    etat->timer_roues++;
+
+    // Animation toutes les 6 frames
+    if (etat->timer_roues % 6 == 0) {
+        for (int i = 0; i < NB_ROUES; i++) {
+            // Animation des frames (cycle 0-3)
+            etat->roues_struct[i].frame = (etat->roues_struct[i].frame + 1) % 4;
+
+            // Mouvement vertical si activé
+            if (etat->roues_struct[i].sens_vertical != 0) {
+                etat->roues_struct[i].y += 6 * etat->roues_struct[i].sens_vertical;
+
+                // Inversion du sens si limites atteintes
+                if (etat->roues_struct[i].y >= etat->roues_struct[i].limite_bas) {
+                    etat->roues_struct[i].sens_vertical = -1;
+                }
+                else if (etat->roues_struct[i].y <= etat->roues_struct[i].limite_haut) {
+                    etat->roues_struct[i].sens_vertical = 1;
+                }
+            }
+        }
+    }
+}
+
+// 4. Collision roue avec checkpoint
+void gestion_collision_roues(EtatJeu *etat) {
+    const int rayon_collision = 90;
+    int jx = etat->joueur.x + etat->decor_scroll + etat->joueur.largeur / 2;
+    int jy = etat->joueur.y + etat->joueur.hauteur / 2;
+
+    for (int i = 0; i < NB_ROUES; i++) {
+        int rx = etat->roues_struct[i].x;
+        int ry = etat->roues_struct[i].y;
+        int dx = jx - rx;
+        int dy = jy - ry;
+        int distance2 = dx * dx + dy * dy;
+
+        if (distance2 < rayon_collision * rayon_collision) {
+            etat->joueur_est_mort = 1; // Toujours déclencher la mort
+            return;
+        }
+    }
+}
+
+
+
+// 5. Checkpoints
+int joueur_sur_checkpoint(Joueur *joueur, int cp_x, int cp_y, int scroll, int cp_width, int cp_height) {
+    const int CP_ZONE_LARGEUR = cp_width;
+    const int CP_ZONE_HAUTEUR = cp_height;
+
+    // Coordonnées du joueur
+    int jx1 = joueur->x;
+    int jy1 = joueur->y;
+    int jx2 = jx1 + joueur->largeur;
+    int jy2 = jy1 + joueur->hauteur;
+
+    // Coordonnées du checkpoint (ajustées avec le scroll)
+    int cx1 = cp_x - scroll;
+    int cy1 = cp_y - cp_height;
+    int cx2 = cx1 + CP_ZONE_LARGEUR;
+    int cy2 = cy1 + CP_ZONE_HAUTEUR;
+
+    // Vérification collision AABB
+    return !(jx2 < cx1 || jx1 > cx2 || jy2 < cy1 || jy1 > cy2);
+}
+
+void gestion_collision_champis(EtatJeu *etat) {
+    // Position globale du joueur (avec le défilement)
+    int joueur_x = etat->joueur.x + etat->decor_scroll;
+    int joueur_y = etat->joueur.y;
+
+    for (int i = 0; i < NB_CHAMPI; i++) {
+        // Nouvelles dimensions de la hitbox (plus petites que l'image)
+        const int champi_w = 100;  // Largeur réduite
+        const int champi_h = 120;   // Hauteur réduite
+
+        // Calcul du décalage pour centrer la hitbox
+        int champi_x = etat->champis[i].x + (138 - champi_w)/2;
+        int champi_y = etat->champis[i].y + (198 - champi_h)/2;
+
+        // Vérification de collision rectangle-rectangle
+        if (collision(joueur_x, joueur_y,
+                     etat->joueur.largeur, etat->joueur.hauteur,
+                     champi_x, champi_y,
+                     champi_w, champi_h)) {
+
+            etat->joueur_est_mort = 1; // Toujours déclencher la mort
+            return;
+                     }
+    }
+}
+
+
+void gestion_collision_lianes(EtatJeu *etat) {
+    if (etat->invincible_aux_lianes) return;
+    // Position globale du joueur (avec le défilement)
+    int joueur_x = etat->joueur.x + etat->decor_scroll;
+    int joueur_y = etat->joueur.y;
+
+    for (int i = 0; i < NB_LIANE; i++) {
+        // Dimensions de la hitbox (80x200 pour une image 250x250)
+        const int liane_w = 80;
+        const int liane_h = 200;
+
+        // Position de la hitbox avec décalage pour centrage
+        int liane_x = etat->lianes[i].x + 85;
+        int liane_y = etat->lianes[i].y + 25;
+
+        if (collision(joueur_x, joueur_y,
+                     etat->joueur.largeur, etat->joueur.hauteur,
+                     liane_x, liane_y,
+                     liane_w, liane_h)) {
+
+            etat->joueur_est_mort = 1; // Toujours déclencher la mort
+            return;
+                     }
+    }
+}
+
+void maj_checkpoints(EtatJeu *etat) {
+    for (int i = 0; i < NB_CHECKPOINTS; i++) {
+        if (!etat->checkpoints[i].actif &&
+            joueur_sur_checkpoint(&etat->joueur,
+                                 etat->positions_cp[i][0],
+                                 etat->positions_cp[i][1],
+                                 etat->decor_scroll,
+                                 etat->sprite_joueur[0]->w, // Largeur du sprite
+                                 etat->img_checkpoint->h))  // Hauteur du checkpoint
+        {
+            // Activation du checkpoint
+            etat->checkpoints[i].x = etat->joueur.x;
+            etat->checkpoints[i].y = etat->joueur.y;
+            etat->checkpoints[i].scroll = etat->decor_scroll;
+            etat->checkpoints[i].actif = 1;
+            etat->dernier_cp = i;  // Mise à jour du dernier checkpoint
+
+            // Optionnel : jouer un son d'activation
+            if (etat->son_checkpoint) {
+                play_sample(etat->son_checkpoint, 255, 128, 1000, 0);
+            }
+        }
+    }
+}
+void afficher_roues(BITMAP *page, BITMAP *roues[], Roue roues_struct[], int nb, int decor_scroll) {
+    for (int i = 0; i < nb; i++) {
+        BITMAP *roue = roues[roues_struct[i].frame];
+        int x_affiche = roues_struct[i].x - decor_scroll - roue->w / 2;
+        int y_affiche = roues_struct[i].y - roue->h / 2;
+        draw_sprite(page, roue, x_affiche, y_affiche);
+    }
+}
+
+void gerer_saut(EtatJeu *etat) {
+    while (keypressed()) {
+        if ((readkey() >> 8) == KEY_SPACE) {
+            etat->joueur.sprite_state = 1;
+            etat->timer_saut = 10;
+            etat->joueur.dy = JUMP_STRENGTH; // force de montée à chaque appui
+
+            etat->temps_trainee = 200;
+
+            if (etat->son_saut) {
+                play_sample(etat->son_saut, 255, 128, 1000, 0);
+            }
+            break;
+        }
+    }
+
+    if (etat->timer_saut > 0) {
+        etat->timer_saut--;
+        if (etat->timer_saut == 0) {
+            etat->joueur.sprite_state = 0;
+        }
+    }
+}
+
+void appliquer_physique(EtatJeu *etat) {
+    // Application de la gravité
+    etat->joueur.dy += GRAVITY;
+
+    // Limitation de la vitesse de chute (terminal velocity)
+    const int VITESSE_MAX_CHUTE = 15;
+    if (etat->joueur.dy > VITESSE_MAX_CHUTE) {
+        etat->joueur.dy = VITESSE_MAX_CHUTE;
+    }
+
+    // Application du mouvement horizontal si nécessaire
+    if (etat->joueur.dx != 0) {
+        etat->joueur.x += etat->joueur.dx;
+
+        // Frottement horizontal
+        etat->joueur.dx *= 0.9f;
+        if (fabs(etat->joueur.dx) < 0.1f) {
+            etat->joueur.dx = 0;
+        }
+    }
+
+
+}
+
+int verifier_collision_roue(Joueur *joueur, BITMAP *roue, int roue_x, int roue_y, int decor_scroll) {
+    int roue_largeur = roue->w;
+    int roue_hauteur = roue->h;
+    int roue_x_ecran = roue_x - decor_scroll;
+
+    return collision(joueur->x, joueur->y, joueur->largeur, joueur->hauteur,
+                     roue_x_ecran, roue_y, roue_largeur, roue_hauteur);
+}
+
+void gerer_collisions(EtatJeu *etat) {
+    // --- Collision horizontale (adaptée de Badlandoriginal.c) ---
+    int try_x = etat->joueur.x + 1;
+    int can_move_x = 1;
+
+    for (int i = 0; i < etat->joueur.largeur && can_move_x; i++) {
+        for (int j = 0; j < etat->joueur.hauteur; j++) {
+            int gx = try_x + i + etat->decor_scroll;
+            int gy = etat->joueur.y + j;
+
+            if (gx < etat->collision_map->w && gy < etat->collision_map->h &&
+                getpixel(etat->collision_map, gx, gy) == makecol(0, 0, 0)) {
+                can_move_x = 0;
+                break;
+                }
+        }
+    }
+
+    if (can_move_x && etat->joueur.x < MY_SCREEN_W / 3) {
+        etat->joueur.x += 1;
+    } else {
+        int pushed;
+        do {
+            pushed = 0;
+            for (int i = 0; i < etat->joueur.largeur && !pushed; i++) {
+                for (int j = 0; j < etat->joueur.hauteur && !pushed; j++) {
+                    int gx = etat->joueur.x + i + etat->decor_scroll;
+                    int gy = etat->joueur.y + j;
+                    if (gx < etat->collision_map->w && gy < etat->collision_map->h &&
+                        getpixel(etat->collision_map, gx, gy) == makecol(0, 0, 0)) {
+                        etat->joueur.x -= 1;
+                        pushed = 1;
+                        }
+                }
+            }
+        } while (pushed && etat->joueur.x > -100);
+    }
+
+
+
+
+
+
+    // Collisions verticales
+    // --- Collision verticale (adaptée de Badlandoriginal.c) ---
+    int try_y = etat->joueur.y + etat->joueur.dy;
+    int can_move_y = 1;
+
+    for (int i = 0; i < etat->joueur.largeur && can_move_y; i++) {
+        for (int j = 0; j < etat->joueur.hauteur; j++) {
+            int gx = etat->joueur.x + i + etat->decor_scroll;
+            int gy = try_y + j;
+
+            if (gx < etat->collision_map->w && gy < etat->collision_map->h &&
+                getpixel(etat->collision_map, gx, gy) == makecol(0, 0, 0)) {
+                can_move_y = 0;
+                break;
+                }
+        }
+    }
+
+    if (can_move_y) {
+        etat->joueur.y += etat->joueur.dy;
+    } else {
+        etat->joueur.dy = 0;
+    }
+
+    // Limites verticales (haut/bas)
+    if (etat->joueur.y < 10) {
+        etat->joueur.y = 10;
+        etat->joueur.dy = 0;
+    }
+    if (etat->joueur.y + etat->joueur.hauteur > MY_SCREEN_H - 10) {
+        etat->joueur.y = MY_SCREEN_H - etat->joueur.hauteur - 10;
+        etat->joueur.dy = 0;
+    }
+
+    // Protection minimale à gauche
+    if (etat->joueur.x < -100) {
+        etat->joueur.x = -100;
+    }
+
+}
+
+int collision(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2) {
+    return x1 + w1 > x2 && x1 < x2 + w2 && y1 + h1 > y2 && y1 < y2 + h2;
+}
+
+void afficher_scene(EtatJeu *etat) {
+    // Effacement du buffer
+    clear_bitmap(etat->page);
+    blit(etat->fond, etat->page, etat->decor_scroll, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+    for (int i = 0; i < NB_BONUS_TYPES; i++) {
+        if (etat->bonus_actifs[3][i] && !etat->bonus_collision[3][i]) {
+            draw_sprite(etat->page, etat->img_bonus[3],
+                        etat->bonus_pos[3][i][0] - etat->decor_scroll,
+                        etat->bonus_pos[3][i][1]);
+        }
+    }
+
+
+
+    if (etat->invincible_aux_lianes) {
+        // Dessine un effet de bouclier autour du joueur
+        circle(etat->page,
+               etat->joueur.x + etat->joueur.largeur/2,
+               etat->joueur.y + etat->joueur.hauteur/2,
+               30, makecol(0, 255, 0));
+    }
+
+    // Affichage des roues
+    for (int i = 0; i < NB_ROUES; i++) {
+        BITMAP *roue = etat->roues[etat->roues_struct[i].frame];
+        int x = etat->roues_struct[i].x - etat->decor_scroll - roue->w/2;
+        int y = etat->roues_struct[i].y - roue->h/2;
+        draw_sprite(etat->page, roue, x, y);
+    }
+
+    // Affichage des checkpoints
+    for (int i = 0; i < NB_CHECKPOINTS; i++) {
+        int x = etat->positions_cp[i][0] - etat->decor_scroll;
+        int y = etat->positions_cp[i][1] - etat->img_checkpoint->h;
+
+        // Debug hitbox (optionnel)
+        rect(etat->page, x, y, x+170, y+170, makecol(255, 0, 0));
+
+        if (etat->checkpoints[i].actif) {
+            draw_trans_sprite(etat->page, etat->img_checkpoint, x, y);
+        } else {
+            draw_sprite(etat->page, etat->img_checkpoint, x, y);
+        }
+    }
+
+    //  affichage des champignons :
+    for (int i = 0; i < NB_CHAMPI; i++) {
+        int x = etat->position_champi[i][0] - etat->decor_scroll;
+        int y = etat->position_champi[i][1];
+        draw_sprite(etat->page, etat->img_champi, x, y);
+
+        // Debug hitbox - nouvelle version
+        const int champi_w = 100;
+        const int champi_h = 120;
+        int hitbox_x = x + (138 - champi_w)/2;
+        int hitbox_y = y + (198 - champi_h)/2;
+        rect(etat->page, hitbox_x, hitbox_y,
+             hitbox_x + champi_w, hitbox_y + champi_h,
+             makecol(255, 0, 0));
+    }
+    //affichaage lianes
+    for (int i = 0; i < NB_LIANE; i++) {
+        int x = etat->position_liane[i][0] - etat->decor_scroll;
+        int y = etat->position_liane[i][1];
+
+        // Dessin de la liane
+        draw_sprite(etat->page, etat->img_liane, x, y);
+
+        // Debug hitbox (80x200 avec décalage 85,25)
+        int hitbox_x = x + 85;
+        int hitbox_y = y + 25;
+        rect(etat->page, hitbox_x, hitbox_y,
+             hitbox_x + 80, hitbox_y + 200,
+             makecol(255, 0, 0));
+    }
+
+    //affichage poissons
+    for (int i = 0; i < NB_POISSON; i++) {
+        int x = etat->position_poisson[i][0] - etat->decor_scroll;
+        int y = etat->position_poisson[i][1];
+        draw_sprite(etat->page, etat->img_poisson, x, y);
+
+        // Debug hitbox - nouvelle version
+        const int poisson_w = 100;
+        const int poisson_h = 120;
+        int hitbox_x = x + (138 - poisson_w)/2;
+        int hitbox_y = y + (198 - poisson_h)/2;
+        rect(etat->page, hitbox_x, hitbox_y,
+             hitbox_x + poisson_w, hitbox_y + poisson_h,
+             makecol(255, 0, 0));
+    }
+
+    //affichage crabes
+    for (int i = 0; i < NB_CRABE; i++) {
+        int x = etat->position_crabe[i][0] - etat->decor_scroll;
+        int y = etat->position_crabe[i][1];
+        draw_sprite(etat->page, etat->img_crabe, x, y);
+
+        // Debug hitbox - nouvelle version
+        const int crabe_w = 100;
+        const int crabe_h = 120;
+        int hitbox_x = x + (138 - crabe_w)/2;
+        int hitbox_y = y + (198 - crabe_h)/2;
+        rect(etat->page, hitbox_x, hitbox_y,
+             hitbox_x + crabe_w, hitbox_y + crabe_h,
+             makecol(255, 0, 0));
+    }
+
+    // Affichage des bonus
+    if (etat->bonus_actifs[0] && !etat->bonus_collision[0]) { // Gros
+        draw_sprite(etat->page, etat->img_bonus[0],
+                    etat->bonus_pos[0][0] - etat->decor_scroll,
+                    etat->bonus_pos[0][1]);
+    }
+
+
+    // Affichage des bonus "Petit"
+    if (etat->bonus_actifs[1] && !etat->bonus_collision[1]) {
+        draw_sprite(etat->page, etat->img_bonus[1],
+                    etat->bonus_pos[1][0] - etat->decor_scroll,
+                    etat->bonus_pos[1][1]);
+    }
+
+    // Affichage des bonus "Vite"
+    if (etat->bonus_actifs[2] && !etat->bonus_collision[2]) {
+        draw_sprite(etat->page, etat->img_bonus[2],
+                    etat->bonus_pos[2][0] - etat->decor_scroll,
+                    etat->bonus_pos[2][1]);
+    }
+
+
+    // Traînée de saut
+    if (etat->temps_trainee > 0) {
+        int x = etat->joueur.x - etat->img_trainee->w + 30;
+        int y = etat->joueur.y + etat->joueur.hauteur/2 - etat->img_trainee->h/2 + 40;
+        draw_sprite(etat->page, etat->img_trainee, x, y);
+    }
+
+    // Affichage du joueur
+    BITMAP *sprite_joueur = etat->joueur.sprite_state ? etat->sprite_joueur[1] : etat->sprite_joueur[0];
+    stretch_sprite(etat->page, sprite_joueur,
+                 etat->joueur.x, etat->joueur.y,
+                 etat->joueur.largeur, etat->joueur.hauteur);
+
+    if (etat->niveau_actuel == NIVEAU_MER) {
+        int fin_x = FIN_MER_X - etat->decor_scroll;
+        int fin_y = FIN_MER_Y;
+
+        // Vérifier si l'image est visible à l'écran
+        if (fin_x > -200 && fin_x < MY_SCREEN_W) {
+            if (etat->img_fin_mer) {
+                draw_sprite(etat->page, etat->img_fin_mer, fin_x, fin_y);
+            } else {
+                // Fallback: rectangle rouge si l'image n'est pas chargée
+                rectfill(etat->page, fin_x, fin_y,
+                        fin_x + 100, fin_y + 100,
+                        makecol(255, 0, 0));
+            }
+        }
+    }
+
+    // Affichage du temps
+    char buffer[50];
+
+
+
+    etat->temps_jeu = (clock() - etat->temps_depart) / CLOCKS_PER_SEC;
+    sprintf(buffer, "Temps : %d s", etat->temps_jeu);
+    textout_ex(etat->page, font, buffer, 10, 10, makecol(255, 255, 255), -1);
+
+    // Copie finale vers l'écran
+    blit(etat->page, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+}
+
+void nettoyer_ressources(EtatJeu *etat) {
+    // Libération des bitmaps
+    if (etat->fond) {
+        destroy_bitmap(etat->fond);
+        etat->fond = NULL;
+    }
+
+    if (etat->collision_map) {
+        destroy_bitmap(etat->collision_map);
+        etat->collision_map = NULL;
+    }
+
+    // Sprites joueur
+    if (etat->sprite_joueur[0]) {
+        destroy_bitmap(etat->sprite_joueur[0]);
+        etat->sprite_joueur[0] = NULL;
+    }
+    if (etat->sprite_joueur[1]) {
+        destroy_bitmap(etat->sprite_joueur[1]);
+        etat->sprite_joueur[1] = NULL;
+    }
+
+
+    // Autres éléments
+    if (etat->img_explosion) {
+        destroy_bitmap(etat->img_explosion);
+        etat->img_explosion = NULL;
+    }
+
+    if (etat->img_trainee) {
+        destroy_bitmap(etat->img_trainee);
+        etat->img_trainee = NULL;
+    }
+
+    if (etat->img_checkpoint) {
+        destroy_bitmap(etat->img_checkpoint);
+        etat->img_checkpoint = NULL;
+    }
+
+    if (etat->img_liane) {
+        destroy_bitmap(etat->img_liane);
+        etat->img_liane = NULL;
+    }
+
+    // Roues
+    for (int i = 0; i < 4; i++) {
+        if (etat->roues[i]) {
+            destroy_bitmap(etat->roues[i]);
+            etat->roues[i] = NULL;
+        }
+    }
+    //poisons
+    if (etat->img_poisson) {
+        destroy_bitmap(etat->img_poisson);
+        etat->img_poisson = NULL;
+    }
+//crabes
+    if (etat->img_crabe) {
+        destroy_bitmap(etat->img_crabe);
+        etat->img_crabe = NULL;
+    }
+
+    // Page de rendu
+    if (etat->page) {
+        destroy_bitmap(etat->page);
+        etat->page = NULL;
+    }
+
+    // Sons
+    if (etat->musique_niveau) {
+        stop_sample(etat->musique_niveau);
+        destroy_sample(etat->musique_niveau);
+        etat->musique_niveau = NULL;
+    }
+
+    if (etat->son_saut) {
+        destroy_sample(etat->son_saut);
+        etat->son_saut = NULL;
+    }
+
+    if (etat->son_explosion) {
+        destroy_sample(etat->son_explosion);
+        etat->son_explosion = NULL;
+    }
+
+    for (int i = 0; i < 4; i++) {  // 0 à 3
+        if (etat->img_bonus[i]) {
+            destroy_bitmap(etat->img_bonus[i]);
+        }
+    }
+}
+
+
+
+
+void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
+    // Niveau Volcan
+    niveaux[NIVEAU_VOLCAN] = (NiveauRessources){
+        .fond_path = "grotte_lave.bmp",
+        .collision_path = "grotte_lave_colli.bmp",
+        .sprite1_path = "personnage1.bmp",
+        .sprite2_path = "personnage2.bmp",
+        .img_gros_path = "gros.bmp",
+        .img_petit_path = "petit.bmp",
+        .explosion_path = "explosion_lave.bmp",
+        .champi_path = "champignon.bmp",
+        .liane_path = "liane.bmp",
+        .poisson_path = "poisson.bmp",
+        .crabe_path = "crabe.bmp",
+        .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
+        .positions_liane = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
+        .positions_poisson = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
+        .positions_crabe = {{20000, 0}, {20000, 0}, {20000, 0},{20000, 0},{20000, 0},{20000, 0}, {20000, 0}},
+        .trainee_path = "saut.bmp",
+        .img_vite_path = "vite.bmp",
+        .img_invincible_path = "invincible_lianes.bmp",
+        .img_fin_path = "fin_mer.bmp",
+        .musique_path = "lave.wav",
+        .checkpoint_path = "checkpoint.bmp",
+        .roues_paths = {"roue0.bmp", "roue1.bmp", "roue2.bmp", "roue3.bmp"},
+        .positions_cp = {{1583, 571}, {3500, 590}, {5670, 600}, {7650, 570}},
+        .roues_positions = {{3530, 170,0},
+        {4600, 390,0},
+        {6550, 130,0},
+        {6550, 420,0},{8000, 420,0}}
+    };
+
+    // Niveau Montagne (chemins différents)
+
+    niveaux[NIVEAU_MONTAGNE] = (NiveauRessources){
+        .fond_path = "foret.bmp",
+        .collision_path = "foret_colli.bmp",
+        .sprite1_path = "personnage1.bmp",
+        .sprite2_path = "personnage2.bmp",
+        .img_vite_path = "vite.bmp",
+        .img_invincible_path = "invincible_lianes.bmp",
+        .champi_path = "champignon.bmp",
+        .liane_path = "liane.bmp",
+        .poisson_path = "poisson.bmp",
+        .crabe_path = "crabe.bmp",
+        .positions_champi = {{2058, 416}, {4524, 456}, {6400, 334}, {8420, 340}},
+        .positions_liane = {{680, 125}, {4015, 126}, {6650, 112}, {7120, 130}},
+        .positions_poisson = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
+        .positions_crabe = {{20000, 0}, {20000, 0},{20000, 0},{20000, 0},{20000, 0}, {20000, 0}, {20000, 0}},
+        .musique_path = "montagne.wav",
+        .img_gros_path = "gros.bmp",
+        .img_petit_path = "petit.bmp",
+        .explosion_path = "explosion_foret.bmp",
+        .img_fin_path = "fin_mer.bmp",
+        .trainee_path = "saut2.bmp",
+        .checkpoint_path = "checkpoint2.bmp",
+        .roues_paths = {"roue0.bmp", "roue1.bmp", "roue2.bmp", "roue3.bmp"},
+        .positions_cp = {{600, 600}, {2400, 600}, {4000, 600}, {5300, 600}},
+        .roues_positions = {{20000, 170,0},
+        {20000, 390,0},
+        {20000, 130,0},
+        {20000, 420,0},{20000, 420,0}}
+    };
+
+
+    // Niveau Mer (chemins différents)
+    niveaux[NIVEAU_MER] = (NiveauRessources){
+        .fond_path = "mer_fond.bmp",
+        .collision_path = "mer_colli.bmp",
+        .sprite1_path = "personnage1.bmp",
+        .sprite2_path = "personnage2.bmp",
+        .img_vite_path = "vite.bmp",
+        .img_invincible_path = "invincible_lianes.bmp",
+        .champi_path = "champignon.bmp",
+        .liane_path = "liane.bmp",
+        .poisson_path = "poisson.bmp",
+        .crabe_path = "crabe.bmp",
+        .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
+        .positions_liane = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
+        .positions_poisson = {{760, 230}, {3250, 300}, {5800, 100}, {7500, 270}},
+        .positions_crabe = {{1220, 270}, {3450, 165}, {3750, 325}, {4250, 165}, {4850, 160}, {4850, 410}, {8100, 135}},
+        .musique_path = "mer.wav",
+        .explosion_path = "explosion_mer.bmp",
+        .trainee_path = "saut3.bmp",
+        .img_fin_path = "fin_mer.bmp",
+        .img_gros_path = "gros.bmp",
+        .img_petit_path = "petit.bmp",
+        .checkpoint_path = "checkpoint3.bmp",
+        .roues_paths = {"roue0.bmp", "roue1.bmp", "roue2.bmp", "roue3.bmp"},
+        .positions_cp = {{600, 450}, {2400, 470}, {5300, 470}, {7300, 470}},
+        .roues_positions = {{20000, 170,0},
+        {20000, 390,0},
+        {20000, 130,0},
+        {20000, 420,0},{20000, 420,0}}
+    };
+}
+
+void afficher_mort(BITMAP *page, BITMAP *img_explosion, Joueur *joueur) {
+
+    int x = joueur->x + joueur->largeur / 2 - img_explosion->w / 2;
+    int y = joueur->y + joueur->hauteur / 2 - img_explosion->h / 2;
+    draw_sprite(page, img_explosion, x, y);
+
+}
+void gestion_collision_crabe(EtatJeu *etat) {
+    // Position globale du joueur (avec le défilement)
+    int joueur_x = etat->joueur.x + etat->decor_scroll;
+    int joueur_y = etat->joueur.y;
+
+    for (int i = 0; i < NB_CRABE; i++) {
+        // Ignorer les crabes désactivés (position x = 20000)
+        if (etat->crabes[i].x == 20000) continue;
+
+        // Dimensions de la hitbox du crabe (ajustées légèrement)
+        const int crabe_w = 60;   // Largeur de la hitbox
+        const int crabe_h = 45;   // Hauteur de la hitbox (légèrement augmentée)
+
+        // Position du crabe avec décalage pour centrer la hitbox plus bas
+        int crabe_x = etat->crabes[i].x + 20;  // Décalage horizontal
+        int crabe_y = etat->crabes[i].y + 15;  // Décalage vertical légèrement augmenté
+
+        // Vérification de collision
+        if (collision(joueur_x, joueur_y,
+                     etat->joueur.largeur, etat->joueur.hauteur,
+                     crabe_x, crabe_y,
+                     crabe_w, crabe_h)) {
+
+            // Déclencher la mort du joueur
+            etat->joueur_est_mort = 1;
+
+            // Jouer le son d'explosion si disponible
+            if (etat->son_explosion) {
+                play_sample(etat->son_explosion, 255, 128, 1000, 0);
+            }
+
+            return; // On sort après la première collision détectée
+                     }
+    }
+}
+
+
+void gestion_collision_poisson(EtatJeu *etat) {
+    // Position globale du joueur (avec le défilement)
+    int joueur_x = etat->joueur.x + etat->decor_scroll;
+    int joueur_y = etat->joueur.y;
+
+    for (int i = 0; i < NB_POISSON; i++) {
+        // Ignorer les crabes désactivés (position x = 20000)
+
+        const int poissons_w = 60;   // Largeur de la hitbox
+        const int poissons_h = 50;   // Hauteur de la hitbox (augmentée)
+
+        // Position du crabe avec décalage pour centrer la hitbox plus bas
+        int poissons_x = etat->poissons[i].x + 20;  // Décalage horizontal
+        int poissons_y = etat->poissons[i].y + 25;  // Décalage vertical augmenté
+
+        // Vérification de collision
+        if (collision(joueur_x, joueur_y,
+                     etat->joueur.largeur, etat->joueur.hauteur,
+                     poissons_x, poissons_y,
+                     poissons_w, poissons_h)) {
+
+            // Déclencher la mort du joueur
+            etat->joueur_est_mort = 1;
+            etat->joueur.dx = 0;
+            etat->joueur.dy = 0;
+
+            // Jouer le son d'explosion si disponible
+            if (etat->son_explosion) {
+                play_sample(etat->son_explosion, 255, 128, 1000, 0);
+            }
+
+            return; // On sort après la première collision détectée
+                     }
+    }
+}
+void sauvegarder_partie(const char *pseudo, int niveau_max_debloque, int dernier_cp, int temps_jeu, EtatJeu *etat) {
+    FILE *ancien = fopen("sauvegarde.txt", "r");
+    FILE *temp = fopen("temp_sauvegarde.txt", "w");
+    if (!temp) {
+        allegro_message("Erreur : impossible de créer temp_sauvegarde.txt");
+        return;
+    }
+
+    char ligne[128], nom[50];
+    int niv, cp, temps, scroll;
+    int trouve = 0;
+    while (ancien && fgets(ligne, sizeof(ligne), ancien)) {
+        sscanf(ligne, "%s %d %d %d %d", nom, &niv, &cp, &temps, &scroll);
+        if (strcmp(nom, pseudo) != 0) {
+            fputs(ligne, temp);  // Conserve les autres lignes
+        } else {
+            trouve = 1;  // Trouvé : on remplace plus bas
+        }
+    }
+
+    // Ajout ou remplacement de la ligne
+    fprintf(temp, "%s %d %d %d %d\n", pseudo, niveau_max_debloque, dernier_cp, temps_jeu,
+            (dernier_cp >= 0) ? etat->checkpoints[dernier_cp].scroll : 0);
+
+    if (ancien) fclose(ancien);
+    fclose(temp);
+
+    remove("sauvegarde.txt");
+    rename("temp_sauvegarde.txt", "sauvegarde.txt");
+}
+int charger_partie(const char *pseudo, int *niveau_max_debloque, int *dernier_cp, int *temps_jeu, int *scroll_cp)
+{
+    FILE *fichier = fopen("sauvegarde.txt", "r");
+    if (!fichier) return 0;
+
+    char ligne[128], nom[50];
+    int niv, cp, temps, scroll;
+    while (fgets(ligne, sizeof(ligne), fichier)) {
+        sscanf(ligne, "%s %d %d %d %d", nom, &niv, &cp, &temps, &scroll);
+        if (strcmp(nom, pseudo) == 0) {
+            *niveau_max_debloque = niv;
+            *dernier_cp = cp;
+            *temps_jeu = temps;
+            *scroll_cp = scroll;
+            fclose(fichier);
+            return 1;
+        }
+    }
+    fclose(fichier);
+    return 0;
+}
+void jeu_scrolling(const char *pseudo, TypeNiveau niveau, int niveau_max_debloque,
+                   int dernier_cp, int scroll_cp, int partie_chargee, int temps_jeu,
+                   SAMPLE *lave, SAMPLE *menu, SAMPLE *montagne, SAMPLE *mer) {
+
+    // Initialisation de l'état du jeu
+    EtatJeu etat;
+    init_jeu(&etat, niveau, pseudo);
+    SAMPLE *musique_niveau;
+    etat.temps_depart = clock() - (temps_jeu * CLOCKS_PER_SEC);
+    etat.dernier_cp = -1;
+    int scroll_recalage_fait = 0;
+    int afficher_vite = 0, vite_collision = 0;
+    int vitesse_scroll = DECOR_SCROLL_SPEED;
+    int temps_bonus_vite = 0;
+    int positions_cp[NB_CHECKPOINTS][2];
+    int position_champi[NB_CHAMPI][2];
+    champi champis[NB_CHAMPI];
+    int position_liane[NB_LIANE][2];
+    liane lianes[NB_LIANE];
+    etat.bonus_pos[NB_BONUS_PAR_TYPE][2];  // Position des bonus
+    etat.bonus_actifs[NB_BONUS_PAR_TYPE];  // Etat d'activation
+    etat.bonus_collision[NB_BONUS_PAR_TYPE]; // Etat de collision
+
+    strcpy(etat.joueur.nom, pseudo);
+    etat.joueur.niveau = niveau;
+
+    // Vérifiez que niveau est valide
+    if (niveau < 0 || niveau >= NB_NIVEAUX) {
+        return;
+    }
+
+    // --- Positionnement dynamique des bonus selon le niveau ---
+    switch (niveau) {
+        case NIVEAU_MER:
+            musique_niveau = load_sample("mer.wav");
+            // Gros bonus (3 instances)
+                etat.bonus_pos[0][0][0] = 1600; etat.bonus_pos[0][0][1] = 270;
+        etat.bonus_pos[0][1][0] = 4500; etat.bonus_pos[0][1][1] = 250;
+        etat.bonus_pos[0][2][0] = 8700; etat.bonus_pos[0][2][1] = 270;
+
+        // Petit bonus (3 instances)
+        etat.bonus_pos[1][0][0] = 300; etat.bonus_pos[1][0][1] = 200;
+        etat.bonus_pos[1][1][0] = 4000; etat.bonus_pos[1][1][1] = 180;
+        etat.bonus_pos[1][2][0] =7750; etat.bonus_pos[1][2][1] = 300;
+
+        // Vite bonus (3 instances)
+        etat.bonus_pos[2][0][0] = 2000; etat.bonus_pos[2][0][1] = 350;
+        etat.bonus_pos[2][1][0] = 4200; etat.bonus_pos[2][1][1] = 300;
+        etat.bonus_pos[2][2][0] = 6000; etat.bonus_pos[2][2][1] = 300;
+
+        etat.bonus_pos[3][0][0] = 20000; etat.bonus_pos[3][0][1] = 350;
+        etat.bonus_pos[3][1][0] = 15200; etat.bonus_pos[3][1][1] = 300;
+        etat.bonus_pos[3][2][0] = 70200; etat.bonus_pos[3][2][1] = 300;
+        break;
+
+
+        case NIVEAU_MONTAGNE:
+            musique_niveau = load_sample("montagne.wav");
+            etat.bonus_pos[0][0][0] = 300; etat.bonus_pos[0][0][1] = 300;
+        etat.bonus_pos[0][1][0] = 2200; etat.bonus_pos[0][1][1] = 250;
+        etat.bonus_pos[0][2][0] = 4700; etat.bonus_pos[0][2][1] = 300;
+
+        // Petit bonus (3 instances)
+        etat.bonus_pos[1][0][0] = 700; etat.bonus_pos[1][0][1] = 350;
+        etat.bonus_pos[1][1][0] = 2700; etat.bonus_pos[1][1][1] = 350;
+        etat.bonus_pos[1][2][0] = 5300; etat.bonus_pos[1][2][1] = 320;
+
+
+
+        // Vite bonus (3 instances)
+        etat.bonus_pos[2][0][0] = 1000; etat.bonus_pos[2][0][1] = 350;
+        etat.bonus_pos[2][1][0] = 4200; etat.bonus_pos[2][1][1] = 300;
+        etat.bonus_pos[2][2][0] = 7000; etat.bonus_pos[2][2][1] = 380;
+
+        etat.bonus_pos[3][0][0] = 4000; etat.bonus_pos[3][0][1] = 350;
+        etat.bonus_pos[3][1][0] = 1500; etat.bonus_pos[3][1][1] = 300;
+        etat.bonus_pos[3][2][0] = 7000; etat.bonus_pos[3][2][1] = 300;
+            break;
+
+        case NIVEAU_VOLCAN:
+            musique_niveau = load_sample("lave.wav");
+            // Positions par défaut
+                etat.bonus_pos[0][0][0] = 20000; etat.bonus_pos[0][0][1] = 300;
+        etat.bonus_pos[0][1][0] = 20000; etat.bonus_pos[0][1][1] = 250;
+        etat.bonus_pos[0][2][0] = 20000; etat.bonus_pos[0][2][1] = 350;
+
+        // Petit bonus (3 instances)
+        etat.bonus_pos[1][0][0] = 20000; etat.bonus_pos[1][0][1] = 200;
+        etat.bonus_pos[1][1][0] = 20000; etat.bonus_pos[1][1][1] = 180;
+        etat.bonus_pos[1][2][0] = 20000; etat.bonus_pos[1][2][1] = 220;
+
+        // Vite bonus (3 instances)
+        etat.bonus_pos[2][0][0] = 20000; etat.bonus_pos[2][0][1] = 350;
+        etat.bonus_pos[2][1][0] = 20000; etat.bonus_pos[2][1][1] = 300;
+        etat.bonus_pos[2][2][0] = 20000; etat.bonus_pos[2][2][1] = 280;
+
+        etat.bonus_pos[3][0][0] = 20000; etat.bonus_pos[3][0][1] = 350;
+        etat.bonus_pos[3][1][0] = 20000; etat.bonus_pos[3][1][1] = 300;
+        etat.bonus_pos[3][2][0] = 20000; etat.bonus_pos[3][2][1] = 300;
+            break;
+    }
+    charger_ressources_niveau(&etat);
+    etat.dernier_cp = dernier_cp;
+    if (dernier_cp >= 0) {
+        etat.checkpoints[dernier_cp].x = etat.positions_cp[dernier_cp][0];
+        etat.checkpoints[dernier_cp].y = etat.positions_cp[dernier_cp][1];
+        etat.checkpoints[dernier_cp].scroll = scroll_cp;
+        etat.checkpoints[dernier_cp].actif = 1;
+
+        if (partie_chargee) {
+            etat.joueur.x = etat.positions_cp[dernier_cp][0] - scroll_cp;
+        } else {
+            etat.joueur.x = 100;
+        }
+
+        etat.joueur.y = 320;
+        etat.decor_scroll = scroll_cp;
+        etat.joueur.dx = etat.joueur.dy = 0;
+        scroll_recalage_fait = 1;
+    }
+
+    for (int i = 0; i < NB_BONUS_TYPES; i++) {
+        for (int j = 0; j < NB_BONUS_PAR_TYPE; j++) {
+            etat.bonus_actifs[i][j] = 1;
+            etat.bonus_collision[i][j] = 0;
+        }
+    }
+
+    etat.facteur_perso = 1.0f; // Taille normale
+    etat.vitesse_scroll = DECOR_SCROLL_SPEED; // Vitesse de base
+
+    // Variables de défilement et de temps
+    int decor_scroll = 0;
+    int temps_depart = clock();
+
+    // Création de la page de dessin
+    etat.page = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
+
+    // Chargement des ressources spécifiques au niveau
+    BITMAP *fond, *collision_map, *sprite1, *sprite2, *img_gros, *img_petit,*img_explosion, *img_trainee, *img_checkpoint, *img_vite, *img_champi, *img_liane;
+    BITMAP *roues[4];
+    // Initialisation des roues
+    Roue roues_struct[NB_ROUES];
+    Checkpoint checkpoints[NB_CHECKPOINTS];
+
+    // Chargement des ressources
+    charger_ressources_niveau(&etat);
+
+    for (int i = 0; i < NB_ROUES; i++) {
+        roues_struct[i].frame = 0;
+    }
+
+    // Initialisation des checkpoints
+    // Variables pour l'animation et l'état du joueur
+    int timer_roues = 0;
+    int sprite_state = 0;
+    int timerinterne = 0;
+    float facteur_perso = 1.0;
+
+    // Variables pour les objets spéciaux
+    int afficher_gros = 0, afficher_petit = 0;
+    int gros_collision = 0, petit_collision = 0;
+
+    int explosion_affichee = 0;
+    int temps_mort = 0;
+    int temps_trainee = 0;
+    stop_sample(musique_niveau);
+
+    // Boucle principale du jeu
+    while (!key[KEY_ESC]) {
+        if (key[KEY_P]) {
+            BITMAP *pause_screen = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
+            BITMAP *pause_buffer = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);  // Nouveau buffer pour éviter scintillement
+
+            blit(etat.page, pause_screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+            while (1) {
+                // Utilise un buffer pour dessiner hors écran
+                blit(pause_screen, pause_buffer, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+                // Dessin du menu pause dans le buffer
+                rectfill(pause_buffer, 200, 150, 600, 350, makecol(50, 50, 50));
+                rect(pause_buffer, 200, 150, 600, 350, makecol(255, 255, 255));
+                textout_centre_ex(pause_buffer, font, "PAUSE", 400, 170, makecol(255, 255, 0), -1);
+
+                rect(pause_buffer, 250, 210, 550, 250, makecol(255, 255, 255));
+                textout_centre_ex(pause_buffer, font, "Reprendre", 400, 220, makecol(255, 255, 255), -1);
+
+                rect(pause_buffer, 250, 280, 550, 320, makecol(255, 255, 255));
+                textout_centre_ex(pause_buffer, font, "Sauvegarder et Quitter", 400, 290, makecol(255, 255, 255), -1);
+
+                // Affichage final du buffer à l’écran
+                blit(pause_buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+                if (mouse_b & 1) {
+                    if (mouse_x >= 250 && mouse_x <= 550 && mouse_y >= 210 && mouse_y <= 250) {
+                        rest(200);
+                        break;
+                    } else if (mouse_x >= 250 && mouse_x <= 550 && mouse_y >= 280 && mouse_y <= 320) {
+                        sauvegarder_partie(pseudo, niveau_max_debloque, etat.dernier_cp, etat.temps_jeu, &etat);
+
+                        stop_sample(etat.musique_niveau);
+                        nettoyer_ressources(&etat);
+                        destroy_bitmap(pause_screen);
+                        destroy_bitmap(pause_buffer);
+                        menu_principal(lave, menu, montagne, mer);
+                        return;
+                    }
+                }
+
+                rest(20);  // limite le framerate
+            }
+
+            destroy_bitmap(pause_screen);
+            destroy_bitmap(pause_buffer);
+        }
+
+        int temps_actuel = (clock() - temps_depart) / CLOCKS_PER_SEC;
+        if (etat.joueur_est_mort == 1) {
+            if (!explosion_affichee) {
+                afficher_scene(&etat);
+                if (!etat.img_explosion) {
+                    allegro_message("Erreur : explosion non chargée !");
+                    return;
+                }
+                afficher_mort(etat.page, etat.img_explosion, &etat.joueur);
+                blit(etat.page, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+                explosion_affichee = 1;
+                temps_mort = clock();
+            }
+
+            if ((clock() - temps_mort) >= 1000) {
+                if (etat.dernier_cp != -1) {
+                    etat.joueur_est_mort = 2; // Phase de respawn
+                } else {
+                    // Retour au menu après avoir affiché l'explosion
+                    stop_sample(musique_niveau);
+                    stop_sample(lave);
+                    menu_principal(lave, menu, montagne, mer);
+                    return;
+                }
+            } else {
+                rest(20);
+                continue;
+            }
+        }
+
+        // PHASE 2 : Message et repositionnement
+        if (etat.joueur_est_mort == 2) {
+
+            if (etat.dernier_cp != -1) {
+                etat.joueur.x = etat.checkpoints[etat.dernier_cp].x;
+                etat.joueur.y = etat.checkpoints[etat.dernier_cp].y;
+                etat.decor_scroll = etat.checkpoints[etat.dernier_cp].scroll;
+                etat.joueur.dx = etat.joueur.dy = 0;
+                etat.joueur_est_mort = 0;
+                explosion_affichee = 0;
+            } else {
+                stop_sample(musique_niveau);  // Arrêt supplémentaire pour être sûr
+                stop_sample(lave);
+                menu_principal(lave, menu, montagne, mer);
+                return;
+            }
+            continue;
+        }
+
+        // Mise à jour des roues
+        maj_roues(&etat);
+
+        // Gestion des collisions avec les roues
+        gestion_collision_roues(&etat);
+
+        gestion_collision_crabe(&etat);
+        gestion_collision_poisson(&etat);
+
+        // Mise à jour des checkpoints
+        maj_checkpoints(&etat);
+
+        // Détection de l'arrivée
+        if (detecter_arrivee(&etat)) {
+            if (etat.niveau_actuel + 1 > niveau_max_debloque) {
+                niveau_max_debloque = etat.niveau_actuel + 1;
+            }
+            etat.dernier_cp = -1;
+            sauvegarder_partie(pseudo, niveau_max_debloque, etat.dernier_cp, etat.temps_jeu, &etat);
+
+            if (niveau == NIVEAU_VOLCAN) {
+                stop_sample(lave);
+                play_sample(montagne, 200, 100, 920, 1);
+                jeu_scrolling(pseudo, NIVEAU_MONTAGNE, niveau_max_debloque, dernier_cp, scroll_cp, partie_chargee, temps_jeu, lave, menu, montagne, mer);
+;
+            } else if (niveau == NIVEAU_MONTAGNE) {
+                stop_sample(montagne);
+                play_sample(mer, 200, 100, 920, 1);
+                jeu_scrolling(pseudo, NIVEAU_MER, niveau_max_debloque, dernier_cp, scroll_cp, partie_chargee, temps_jeu, lave, menu, montagne, mer);
+;
+            }else {
+                clear_bitmap(etat.page);
+                textout_centre_ex(etat.page, font, "NIVEAU MER TERMINE!",
+                                 MY_SCREEN_W/2, MY_SCREEN_H/2 - 20,
+                                 makecol(255, 255, 255), -1);
+                textout_centre_ex(etat.page, font, "TEMPS: ",
+                                 MY_SCREEN_W/2, MY_SCREEN_H/2 + 10,
+                                 makecol(255, 255, 255), -1);
+                textprintf_centre_ex(etat.page, font, MY_SCREEN_W/2, MY_SCREEN_H/2 + 30,
+                                   makecol(255, 255, 255), -1,
+                                   "%d secondes", etat.temps_jeu);
+                blit(etat.page, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+                // Attendre 3 secondes
+                rest(3000);
+
+                // Retour au menu
+                stop_sample(musique_niveau);
+                menu_principal(lave, menu, montagne, mer);
+                return;
+
+            }
+            continue;
+        }
+
+        if (niveau == NIVEAU_MONTAGNE) {
+            gestion_collision_champis(&etat);
+            gestion_collision_lianes(&etat);
+        }
+
+        // Gestion du saut
+        gerer_saut(&etat);
+
+        // Application de la physique
+        appliquer_physique(&etat);
+
+        // Gestion des collisions avec le décor
+        gerer_collisions(&etat);
+
+        // Vérification des limites de l'écran
+        if (etat.joueur.x + etat.joueur.largeur < 0) {
+            if (etat.dernier_cp != -1) {
+                etat.joueur.x = etat.checkpoints[etat.dernier_cp].x;
+                etat.joueur.y = etat.checkpoints[etat.dernier_cp].y;
+                etat.decor_scroll = etat.checkpoints[etat.dernier_cp].scroll;
+                etat.joueur.dx = etat.joueur.dy = 0;
+            } else {
+                stop_sample(lave);
+                menu_principal(lave, menu, montagne, mer);
+                break;
+            }
+        }
+
+        // Mise à jour du défilement
+
+        // Affichage des objets spéciaux en fonction du temps
+        if (temps_actuel >= 1) afficher_gros = 1;
+        if (temps_actuel >= 1) afficher_petit = 1;
+        if (temps_actuel >= 1) afficher_vite = 1;
+
+
+        for (int type = 0; type < NB_BONUS_TYPES; type++) {
+            for (int instance = 0; instance < NB_BONUS_PAR_TYPE; instance++) {
+                if (etat.bonus_actifs[type][instance] && !etat.bonus_collision[type][instance]) {
+                    int x_ecran = etat.bonus_pos[type][instance][0] - etat.decor_scroll;
+                    int y_pos = etat.bonus_pos[type][instance][1];
+
+                    if (collision(etat.joueur.x, etat.joueur.y,
+                                 etat.joueur.largeur, etat.joueur.hauteur,
+                                 x_ecran, y_pos,
+                                 etat.img_bonus[type]->w, etat.img_bonus[type]->h)) {
+                        etat.bonus_collision[type][instance] = 1;
+
+                        // Appliquer l'effet
+                        switch (type) {
+                            case 0: etat.facteur_perso = 1.5f; break; // Gros
+                            case 1: etat.facteur_perso = 0.6f; break; // Petit
+                            case 2: // Vite
+                                vitesse_scroll = DECOR_SCROLL_SPEED * 3;
+                            temps_bonus_vite = clock();
+                            break;
+                        }
+
+                        if (type == 3) {  // Bonus Invincible Lianes
+                            etat.invincible_aux_lianes = 1;
+                            etat.temps_invincible_lianes = 500;  // 10 secondes (à ajuster)
+                        }
+
+                        if (type == 0 || type == 1) {
+                            etat.joueur.largeur = 40 * etat.facteur_perso;
+                            etat.joueur.hauteur = 40 * etat.facteur_perso;
+                        }
+                                 }
+                }
+            }
+        }
+
+        if (etat.invincible_aux_lianes) {
+            etat.temps_invincible_lianes--;
+            if (etat.temps_invincible_lianes <= 0) {
+                etat.invincible_aux_lianes = 0;
+            }
+        }
+
+        // Fin effet bonus "vite" après 6 secondes
+        if (afficher_vite && ((clock() - temps_bonus_vite) > 10000)) {
+            vitesse_scroll = DECOR_SCROLL_SPEED;
+            afficher_vite = 0;
+
+            // Réactiver l'instance du bonus "vite" qui avait été collectée
+            for (int instance = 0; instance < NB_BONUS_PAR_TYPE; instance++) {
+                if (etat.bonus_collision[2][instance]) {
+                    etat.bonus_collision[2][instance] = 0;
+                    break;
+                }
+            }
+        }
+
+        // Mise à jour du défilement horizontal
+        etat.decor_scroll += vitesse_scroll;
+
+        // Affichage de la scène complète (décor, joueur, bonus, etc.)
+        afficher_scene(&etat);
+
+        // Remplacer la boucle d'affichage des bonus par :
+        for (int type = 0; type < NB_BONUS_TYPES; type++) {
+            for (int instance = 0; instance < NB_BONUS_PAR_TYPE; instance++) {
+                if (etat.bonus_actifs[type][instance] && !etat.bonus_collision[type][instance]) {
+                    int x_ecran = etat.bonus_pos[type][instance][0] - etat.decor_scroll;
+                    int y_pos = etat.bonus_pos[type][instance][1];
+                    draw_sprite(etat.page, etat.img_bonus[type], x_ecran, y_pos);
+                }
+            }
+        }
+
+        // Mise à jour finale de l’écran
+        blit(etat.page, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+        // Petite pause pour le contrôle du framerate
+        rest(20);
+
+        if (etat.temps_trainee > 0) {
+            etat.temps_trainee -= 20;
+            if (etat.temps_trainee < 0) etat.temps_trainee = 0;
+        }
+    }
+    // Si on a quitté avec Échap, sortir proprement
+    if (key[KEY_ESC]) {
+        stop_sample(etat.musique_niveau);
+        stop_sample(menu); // ou lave
+        nettoyer_ressources(&etat);
+
+        // Retour au menu principal au lieu de fermer
+        menu_principal(lave, menu, montagne, mer);
+        return;
+    } else {
+        // Nettoyage normal à la fin du niveau
+        nettoyer_ressources(&etat);
+    }
+
+
+    if (musique_niveau) stop_sample(musique_niveau);  // Arrêter avant de détruire
+    destroy_sample(musique_niveau);
+    if (img_vite) destroy_bitmap(img_vite);
+
+}
+
+
+void charger_ressources_niveau(EtatJeu *etat) {
+    static NiveauRessources niveaux[NB_NIVEAUX];
+    static int initialise = 0;
+
+    if (!initialise) {
+        initialiser_ressources_niveaux(niveaux);
+        initialise = 1;
+    }
+
+    NiveauRessources *n = &niveaux[etat->niveau_actuel];
+
+
+
+    // Charger les bitmaps
+    etat->fond = load_bitmap(n->fond_path, NULL);
+    if (!etat->fond) {
+        allegro_message("Erreur : impossible de charger %s", n->fond_path);
+        exit(1);
+    }
+
+    etat->collision_map = load_bitmap(n->collision_path, NULL);
+    etat->sprite_joueur[0] = load_bitmap(n->sprite1_path, NULL); // sprite normal
+    etat->sprite_joueur[1] = load_bitmap(n->sprite2_path, NULL); // sprite saut
+    etat->img_bonus[0] = load_bitmap(n->img_gros_path, NULL);    // bonus gros
+    etat->img_bonus[1] = load_bitmap(n->img_petit_path, NULL);   // bonus petit
+    etat->img_bonus[2] = load_bitmap(n->img_vite_path, NULL);    // bonus vite
+    etat->img_bonus[3] = load_bitmap(n ->img_invincible_path, NULL);
+
+    etat->img_explosion = load_bitmap(n->explosion_path, NULL);
+    etat->img_trainee = load_bitmap(n->trainee_path, NULL);
+    etat->img_checkpoint = load_bitmap(n->checkpoint_path, NULL);
+    etat->img_champi = load_bitmap(n->champi_path, NULL);
+    etat->img_liane = load_bitmap(n->liane_path, NULL);
+    etat->img_poisson = load_bitmap(n->poisson_path, NULL);
+    etat->img_crabe = load_bitmap(n->crabe_path, NULL);
+
+    if (!etat->img_poisson) {
+        allegro_message("Erreur chargement %s", n->poisson_path);
+        exit(1);
+    }
+
+
+    if (!etat->img_crabe) {
+        allegro_message("Erreur chargement %s", n->crabe_path);
+        exit(1);
+    }
+
+    // Charger la musique du niveau
+    etat->musique_niveau = load_sample(n->musique_path);
+
+    // Initialiser les positions des champignons
+    for (int i = 0; i < NB_CHAMPI; i++) {
+        etat->champis[i].x = n->positions_champi[i][0];
+        etat->champis[i].y = n->positions_champi[i][1];
+        etat->position_champi[i][0] = n->positions_champi[i][0];
+        etat->position_champi[i][1] = n->positions_champi[i][1];
+    }
+
+    for (int i = 0; i < NB_LIANE; i++) {
+        etat->lianes[i].x = n->positions_liane[i][0];
+        etat->lianes[i].y = n->positions_liane[i][1];
+        etat->position_liane[i][0] = n->positions_liane[i][0];
+        etat->position_liane[i][1] = n->positions_liane[i][1];
+    }
+
+    // Initialiser les positions des champignons
+    for (int i = 0; i < NB_POISSON; i++) {
+        etat->poissons[i].x = n->positions_poisson[i][0];
+        etat->poissons[i].y = n->positions_poisson[i][1];
+        etat->position_poisson[i][0] = n->positions_poisson[i][0];
+        etat->position_poisson[i][1] = n->positions_poisson[i][1];
+    }
+
+    // Initialiser les positions des crabes
+    for (int i = 0; i < NB_CRABE; i++) {
+        etat->crabes[i].x = n->positions_crabe[i][0];
+        etat->crabes[i].y = n->positions_crabe[i][1];
+        etat->position_crabe[i][0] = n->positions_crabe[i][0];
+        etat->position_crabe[i][1] = n->positions_crabe[i][1];
+    }
+
+    // Charger les sprites des roues
+    for (int i = 0; i < 4; i++) {
+        etat->roues[i] = load_bitmap(n->roues_paths[i], NULL);
+        if (!etat->roues[i]) {
+            allegro_message("Erreur chargement %s", n->roues_paths[i]);
+            return;
+        }
+    }
+
+    // Initialiser les positions des roues
+    for (int i = 0; i < NB_ROUES; i++) {
+        etat->roues_struct[i] = n->roues_positions[i];
+    }
+
+    // Initialiser les checkpoints
+    for (int i = 0; i < NB_CHECKPOINTS; i++) {
+        etat->checkpoints[i].x = n->positions_cp[i][0];
+        etat->checkpoints[i].y = n->positions_cp[i][1];
+        etat->checkpoints[i].actif = 0;
+        etat->checkpoints[i].scroll = 0;
+
+        etat->positions_cp[i][0] = n->positions_cp[i][0];
+        etat->positions_cp[i][1] = n->positions_cp[i][1];
+    }
+
+    // Configuration spécifique pour la 5ème roue
+    if (NB_ROUES > 4) {
+        etat->roues_struct[4].sens_vertical = 1;
+        etat->roues_struct[4].limite_haut = 150;
+        etat->roues_struct[4].limite_bas = 450;
+    }
+
+
+
+    // Créer la page de rendu si elle n'existe pas
+    if (!etat->page) {
+        etat->page = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
+        if (!etat->page) {
+            allegro_message("Erreur création du buffer de rendu");
+            exit(1);
+        }
+    }
+
+    // Charger l'image de fin pour le niveau mer
+    etat->img_fin_mer = load_bitmap(n->img_fin_path, NULL);
+    if (!etat->img_fin_mer) {
+        allegro_message("Erreur chargement fin_mer.bmp");
+        // On continue quand même avec un rectangle en fallback
+    }
+}
+
+
+
+
+
+void menu_principal(SAMPLE* lave, SAMPLE* menu, SAMPLE* montagne, SAMPLE* mer) {
+    stop_sample(lave);
+    stop_sample(mer);
+    stop_sample(montagne);
+    play_sample(menu, 200, 128, 950, 1);// volume max, centre, fréquence, répéter (1 = oui)
+    BITMAP *buffer = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
+    BITMAP *fondmenu = load_bitmap("fondmenu.bmp", NULL);
+    BITMAP *marbre = load_bitmap("marbre.bmp", NULL);
+    BITMAP *img_volcan = load_bitmap("volcan.bmp", NULL);
+    BITMAP *img_montagne = load_bitmap("montagne.bmp", NULL);
+    BITMAP *img_mer = load_bitmap("mer.bmp", NULL);
+    int niveau_max_debloque = 0, dernier_cp = -1, temps_jeu = 0,scroll_cp = 0;
+    int partie_chargee = 0;
+    if (!fondmenu || !marbre || !img_volcan || !img_montagne || !img_mer) {
+        allegro_message("Erreur chargement images menu : %s", allegro_error);
+        return;
+    }
+
+    char pseudo[MAX_NAME_LENGTH] = "";
+    int etape_menu = 0; // 0 = pseudo, 1 = boutons, 2 = maps
+    int pseudo_index = 0;
+
+    while (!key[KEY_ESC]) {
+        clear(buffer);
+        stretch_blit(fondmenu, buffer, 0, 0, fondmenu->w, fondmenu->h, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+        textout_centre_ex(buffer, font, "==== BADLAND ====", MY_SCREEN_W / 2, 30, makecol(255, 215, 0), -1);
+
+        if (etape_menu == 0) {
+            // =========== SAISIE PSEUDO ===========
+            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, 200, 160, 400, 200);
+            rect(buffer, 200, 160, 600, 360, makecol(0, 0, 0));
+            textout_centre_ex(buffer, font, "RENTRER PSEUDO", 400, 180, makecol(0, 0, 0), -1);
+            rectfill(buffer, 250, 220, 550, 260, makecol(255, 230, 220));
+            rect(buffer, 250, 220, 550, 260, makecol(0, 0, 0));
+            textprintf_ex(buffer, font, 260, 235, makecol(0, 0, 0), -1, "%s", pseudo);
+
+            int ok_x1 = 350, ok_y1 = 290, ok_x2 = 450, ok_y2 = 320;
+            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, ok_x1, ok_y1, ok_x2 - ok_x1, ok_y2 - ok_y1);
+            rect(buffer, ok_x1, ok_y1, ok_x2, ok_y2, makecol(0, 0, 0));
+            textout_centre_ex(buffer, font, "OK", 400, 300, makecol(0, 0, 0), -1);
+
+            if (keypressed()) {
+                int key_code = readkey();
+                int k = key_code >> 8;
+                char ch = key_code & 0xff;
+                if (k == KEY_ENTER && pseudo_index > 0) etape_menu = 1;
+                else if (k == KEY_BACKSPACE && pseudo_index > 0) pseudo[--pseudo_index] = '\0';
+                else if (pseudo_index < MAX_NAME_LENGTH - 1 && ch >= 32 && ch <= 126) {
+                    pseudo[pseudo_index++] = ch;
+                    pseudo[pseudo_index] = '\0';
+                }
+            }
+
+            if (mouse_b & 1 &&
+                mouse_x >= ok_x1 && mouse_x <= ok_x2 &&
+                mouse_y >= ok_y1 && mouse_y <= ok_y2 &&
+                pseudo_index > 0) {
+                etape_menu = 1;
+                rest(200);
+            }
+
+        } else if (etape_menu == 1) {
+            // ========== BOUTONS NOUVELLE / CHARGER ==========
+            textprintf_ex(buffer, font, 10, 40, makecol(255, 255, 255), -1, "Joueur: %s", pseudo);
+            textout_centre_ex(buffer, font, "Que veux-tu faire ?", MY_SCREEN_W / 2, 80, makecol(255, 255, 255), -1);
+
+            int btn_w = 250, btn_h = 80;
+            int btn_x = (MY_SCREEN_W - btn_w) / 2;
+            int btn_y1 = 180;
+            int btn_y2 = 300;
+
+            // Fond marbre + texte
+            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, btn_x, btn_y1, btn_w, btn_h);
+            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, btn_x, btn_y2, btn_w, btn_h);
+            rect(buffer, btn_x, btn_y1, btn_x + btn_w, btn_y1 + btn_h, makecol(0, 0, 0));
+            rect(buffer, btn_x, btn_y2, btn_x + btn_w, btn_y2 + btn_h, makecol(0, 0, 0));
+            textout_centre_ex(buffer, font, "Nouvelle Partie", MY_SCREEN_W / 2, btn_y1 + 30, makecol(0, 0, 0), -1);
+            textout_centre_ex(buffer, font, "Charger Partie", MY_SCREEN_W / 2, btn_y2 + 30, makecol(0, 0, 0), -1);
+
+            // ==== BOUTONS RETOUR ET QUITTER ====
+            int btn_ctrl_w = 100, btn_ctrl_h = 40;
+            int retour_x = 20, retour_y = MY_SCREEN_H - 60;
+            int quit_x = MY_SCREEN_W - 120, quit_y = MY_SCREEN_H - 60;
+
+            // Bouton Retour
+            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, retour_x, retour_y, btn_ctrl_w, btn_ctrl_h);
+            rect(buffer, retour_x, retour_y, retour_x + btn_ctrl_w, retour_y + btn_ctrl_h, makecol(0, 0, 0));
+            textout_centre_ex(buffer, font, "< Retour", retour_x + btn_ctrl_w / 2, retour_y + 12, makecol(0, 0, 0), -1);
+
+            // Bouton Quitter
+            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, quit_x, quit_y, btn_ctrl_w, btn_ctrl_h);
+            rect(buffer, quit_x, quit_y, quit_x + btn_ctrl_w, quit_y + btn_ctrl_h, makecol(0, 0, 0));
+            textout_centre_ex(buffer, font, "Quitter", quit_x + btn_ctrl_w / 2, quit_y + 12, makecol(0, 0, 0), -1);
+            // Gestion clic
+                if (mouse_b & 1) {
+                    rest(200);
+                    // Nouvelle Partie
+                    if (mouse_x >= btn_x && mouse_x <= btn_x + btn_w &&
+                        mouse_y >= btn_y1 && mouse_y <= btn_y1 + btn_h) {
+                        etape_menu = 2;
+                    }
+                    // Charger Partie
+                    else if (mouse_x >= btn_x && mouse_x <= btn_x + btn_w &&
+                             mouse_y >= btn_y2 && mouse_y <= btn_y2 + btn_h) {
+                        if (charger_partie(pseudo, &niveau_max_debloque, &dernier_cp, &temps_jeu, &scroll_cp)) {
+                            allegro_message("Partie chargée avec succès !");
+                            partie_chargee = 1;
+                            etape_menu = 2;
+                        } else {
+                            allegro_message("Aucune sauvegarde trouvée pour ce pseudo.");
+                        };
+                             }
+                    // Retour
+                    else if (mouse_x >= retour_x && mouse_x <= retour_x + btn_ctrl_w &&
+                             mouse_y >= retour_y && mouse_y <= retour_y + btn_ctrl_h) {
+                        etape_menu = 0;
+                    }
+                // Quitter
+                else if (mouse_x >= quit_x && mouse_x <= quit_x + btn_ctrl_w &&
+                         mouse_y >= quit_y && mouse_y <= quit_y + btn_ctrl_h) {
+                    break;
+                }
+            }
+
+        } else if (etape_menu == 2) {
+            // ========== CHOIX MAPS (inchangé) ==========
+            textprintf_ex(buffer, font, 10, 40, makecol(255, 255, 255), -1, "Joueur: %s", pseudo);
+            textout_centre_ex(buffer, font, "Choisis un environnement :", MY_SCREEN_W / 2, 80, makecol(255, 255, 255), -1);
+
+            int cadre_w = 220, cadre_h = 300;
+            int img_w = 200, img_h = 280;
+            int img_y = 130;
+            int space = 40;
+            int start_x = (MY_SCREEN_W - (3 * cadre_w + 2 * space)) / 2;
+
+            // VOLCAN
+            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, start_x, img_y, cadre_w, cadre_h);
+            stretch_blit(img_volcan, buffer, 0, 0, img_volcan->w, img_volcan->h,
+                         start_x + (cadre_w - img_w) / 2, img_y + (cadre_h - img_h) / 2, img_w, img_h);
+            textout_centre_ex(buffer, font, "Terre de Feu", start_x + cadre_w / 2, img_y + cadre_h + 10, makecol(255, 255, 255), -1);
+
+            // MONTAGNE
+            int mx = start_x + cadre_w + space;
+            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, mx, img_y, cadre_w, cadre_h);
+            stretch_blit(img_montagne, buffer, 0, 0, img_montagne->w, img_montagne->h,
+                         mx + (cadre_w - img_w) / 2, img_y + (cadre_h - img_h) / 2, img_w, img_h);
+            textout_centre_ex(buffer, font, "Pics Silencieux", mx + cadre_w / 2, img_y + cadre_h + 10, makecol(255, 255, 255), -1);
+
+            // MER
+            int merx = start_x + 2 * (cadre_w + space);
+            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, merx, img_y, cadre_w, cadre_h);
+            stretch_blit(img_mer, buffer, 0, 0, img_mer->w, img_mer->h,
+                         merx + (cadre_w - img_w) / 2, img_y + (cadre_h - img_h) / 2, img_w, img_h);
+            textout_centre_ex(buffer, font, "Rivages Perdus", merx + cadre_w / 2, img_y + cadre_h + 10, makecol(255, 255, 255), -1);
+
+            // ==== BOUTONS RETOUR ET QUITTER ====
+            int btn_ctrl_w = 100, btn_ctrl_h = 40;
+            int retour_x = 20, retour_y = MY_SCREEN_H - 60;
+            int quit_x = MY_SCREEN_W - 120, quit_y = MY_SCREEN_H - 60;
+
+            // Bouton Retour
+            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, retour_x, retour_y, btn_ctrl_w, btn_ctrl_h);
+            rect(buffer, retour_x, retour_y, retour_x + btn_ctrl_w, retour_y + btn_ctrl_h, makecol(0, 0, 0));
+            textout_centre_ex(buffer, font, "< Retour", retour_x + btn_ctrl_w / 2, retour_y + 12, makecol(0, 0, 0), -1);
+
+            // Bouton Quitter
+            stretch_blit(marbre, buffer, 0, 0, marbre->w, marbre->h, quit_x, quit_y, btn_ctrl_w, btn_ctrl_h);
+            rect(buffer, quit_x, quit_y, quit_x + btn_ctrl_w, quit_y + btn_ctrl_h, makecol(0, 0, 0));
+            textout_centre_ex(buffer, font, "Quitter", quit_x + btn_ctrl_w / 2, quit_y + 12, makecol(0, 0, 0), -1);
+
+            // CLIC MAP
+            if (niveau_max_debloque < NIVEAU_MONTAGNE) {
+                rectfill(buffer, mx, img_y, mx + cadre_w, img_y + cadre_h, makecol(50, 50, 50));
+                textout_centre_ex(buffer, font, "Niveau verrouillé", mx + cadre_w / 2, img_y + cadre_h / 2, makecol(255, 0, 0), -1);
+            }
+
+            if (niveau_max_debloque < NIVEAU_MER) {
+                rectfill(buffer, merx, img_y, merx + cadre_w, img_y + cadre_h, makecol(50, 50, 50));
+                textout_centre_ex(buffer, font, "Niveau verrouillé", merx + cadre_w / 2, img_y + cadre_h / 2, makecol(255, 0, 0), -1);
+            }
+            if (mouse_b & 1) {
+                rest(200);
+                if (mouse_x >= start_x && mouse_x <= start_x + cadre_w &&
+       mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
+                    if (niveau_max_debloque >= NIVEAU_VOLCAN) {
+                        stop_sample(menu);
+                        play_sample(lave, 200, 100, 920, 1);
+                        jeu_scrolling(pseudo, NIVEAU_VOLCAN, niveau_max_debloque, dernier_cp, scroll_cp, partie_chargee, temps_jeu, lave, menu, montagne, mer);
+;
+                        stop_sample(lave);
+                    }
+
+       }
+                else if (mouse_x >= mx && mouse_x <= mx + cadre_w &&
+                               mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
+                    if (niveau_max_debloque >= NIVEAU_MONTAGNE) {
+                        stop_sample(menu);
+                        play_sample(montagne, 200, 100, 920, 1);
+                        jeu_scrolling(pseudo, NIVEAU_MONTAGNE, niveau_max_debloque, dernier_cp, scroll_cp, partie_chargee, temps_jeu, lave, menu, montagne, mer);
+;
+                        stop_sample(montagne);
+                    }
+
+                               }
+                else if (mouse_x >= merx && mouse_x <= merx + cadre_w &&
+                                          mouse_y >= img_y && mouse_y <= img_y + cadre_h) {
+                    if (niveau_max_debloque >= NIVEAU_MER) {
+                        stop_sample(menu);
+                        play_sample(mer, 200, 100, 920, 1);
+                        jeu_scrolling(pseudo, NIVEAU_MER, niveau_max_debloque, dernier_cp, scroll_cp, partie_chargee, temps_jeu, lave, menu, montagne, mer);
+;;
+                        stop_sample(mer);
+                    }
+
+                                          }
+                // Retour
+                if (mouse_x >= retour_x && mouse_x <= retour_x + btn_ctrl_w &&
+                    mouse_y >= retour_y && mouse_y <= retour_y + btn_ctrl_h) {
+                    etape_menu = 1;
+                }
+                // Quitter
+                if (mouse_x >= quit_x && mouse_x <= quit_x + btn_ctrl_w &&
+                    mouse_y >= quit_y && mouse_y <= quit_y + btn_ctrl_h) {
+                    break;
+                }
+            }
+        }
+
+        blit(buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+        rest(1);
+    }
+
+    if (fondmenu) destroy_bitmap(fondmenu);
+    if (marbre) destroy_bitmap(marbre);
+    if (img_volcan) destroy_bitmap(img_volcan);
+    if (img_montagne) destroy_bitmap(img_montagne);
+    if (img_mer) destroy_bitmap(img_mer);
+    if (buffer) destroy_bitmap(buffer);
+
+}
