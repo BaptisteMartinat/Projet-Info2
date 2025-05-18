@@ -671,7 +671,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_liane = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_poisson = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
-        .positions_crabe = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
+        .positions_crabe = {{20000, 0}, {20000, 0}, {20000, 0},{20000, 0},{20000, 0},{20000, 0}, {20000, 0}},
         .trainee_path = "saut.bmp",
         .img_vite_path = "vite.bmp",
         .img_invincible_path = "invincible_lianes.bmp",
@@ -701,7 +701,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .positions_champi = {{2058, 416}, {4524, 456}, {6400, 334}, {8420, 340}},
         .positions_liane = {{680, 125}, {4015, 126}, {6650, 112}, {7120, 130}},
         .positions_poisson = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
-        .positions_crabe = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}},
+        .positions_crabe = {{20000, 0}, {20000, 0},{20000, 0},{20000, 0},{20000, 0}, {20000, 0}, {20000, 0}},
         .musique_path = "montagne.wav",
         .img_gros_path = "gros.bmp",
         .img_petit_path = "petit.bmp",
@@ -732,7 +732,7 @@ void initialiser_ressources_niveaux(NiveauRessources *niveaux) {
         .positions_champi = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_liane = {{20000, 0}, {20000, 0}, {20000, 0}, {20000, 0}}, // Positions par défaut
         .positions_poisson = {{760, 230}, {3250, 300}, {5800, 100}, {7500, 270}},
-        .positions_crabe = {{1220, 270}, {3450, 165}, {4850, 300}, {8100, 135}},
+        .positions_crabe = {{1220, 270}, {3450, 165}, {3750, 345}, {4250, 165}, {4850, 160}, {4850, 300}, {8100, 135}},
         .musique_path = "mer.wav",
         .explosion_path = "explosion_mer.bmp",
         .trainee_path = "saut3.bmp",
@@ -788,7 +788,7 @@ void jeu_scrolling(const char *pseudo, TypeNiveau niveau, SAMPLE *lave, SAMPLE *
         case NIVEAU_MER:
             musique_niveau = load_sample("mer.wav");
             // Gros bonus (3 instances)
-                etat.bonus_pos[0][0][0] = 1500; etat.bonus_pos[0][0][1] = 270;
+                etat.bonus_pos[0][0][0] = 1600; etat.bonus_pos[0][0][1] = 270;
         etat.bonus_pos[0][1][0] = 4500; etat.bonus_pos[0][1][1] = 250;
         etat.bonus_pos[0][2][0] = 8700; etat.bonus_pos[0][2][1] = 270;
 
